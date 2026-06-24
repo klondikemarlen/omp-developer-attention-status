@@ -38,7 +38,7 @@ test("loads the latest persisted developer cost entry", () => {
   assert.equal(state.activeUntilMs, 2)
 })
 
-test("loads legacy persisted state keyed by totalUsd", () => {
+test("ignores invalid persisted state", () => {
   const state = loadPersistedDeveloperCostState([
     {
       type: "custom",
@@ -50,6 +50,6 @@ test("loads legacy persisted state keyed by totalUsd", () => {
     },
   ])
 
-  assert.equal(state.totalCost, 7.89)
-  assert.equal(state.billedWindows, 2)
+  assert.equal(state.totalCost, 0)
+  assert.equal(state.billedWindows, 0)
 })

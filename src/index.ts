@@ -2,6 +2,7 @@ import fs from "node:fs"
 import { homedir } from "node:os"
 import path from "node:path"
 import {
+  displayedDeveloperCost,
   formatDeveloperCost,
   parseDeveloperCostConfig,
   recordDeveloperPrompt,
@@ -14,7 +15,7 @@ import { DEVELOPER_COST_STATE_ENTRY, loadPersistedDeveloperCostState } from "./s
 
 const PLUGIN_NAME = "omp-developer-cost-status"
 const STATUS_KEY = "developer-cost-status"
-const SETTLE_INTERVAL_MS = 15_000
+const SETTLE_INTERVAL_MS = 1_000
 
 type RuntimeState = {
   activeContext?: ExtensionContext
@@ -135,11 +136,7 @@ export default function developerCostStatusExtension(pi: ExtensionApi) {
       const state = stateForSession(sessionStates, ctx, ctx.sessionManager.getSessionId())
       const settledState = settleDeveloperCostState(state, Date.now(), config)
 
-      sessionStates.set(ctx.sessionManager.getSessionId(), settledState)
-      ctx.ui.notify(
-        `${formatDeveloperCost(settledState.totalCost, config.currencyCode)} (${config.label})`,
-        "info",
-      )
+      ctx.ui.notify(statusText(settledState, Date.now(), config), "info")
     },
   })
 
@@ -260,8 +257,13 @@ function updateStatus(
   state: DeveloperCostState,
   config: DeveloperCostConfig,
 ): void {
-  const text = formatDeveloperCost(state.totalCost, config.currencyCode)
-  ctx.ui.setStatus(STATUS_KEY, ctx.ui.theme.fg("dim", `${text} (${config.label})`))
+  ctx.ui.setStatus(STATUS_KEY, ctx.ui.theme.fg("dim", statusText(state, Date.now(), config)))
+}
+
+function statusText(state: DeveloperCostState, nowMs: number, config: DeveloperCostConfig): string {
+  const text = formatDeveloperCost(displayedDeveloperCost(state, nowMs, config))
+
+  return `${text} (${config.label})`
 }
 
 async function readJsonFile<T>(filePath: string): Promise<T | undefined> {
