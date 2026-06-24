@@ -7,16 +7,11 @@ import {
   parseDeveloperCostConfig,
   recordDeveloperPrompt,
   settleDeveloperCostState,
-  windowRateUsd,
+  windowRate,
 } from "../src/billing.js"
 
-const parsed = parseDeveloperCostConfig()
+const config = parseDeveloperCostConfig()
 
-if (!parsed.ok) {
-  throw new Error(parsed.error)
-}
-
-const config = parsed.config
 const windowMs = config.activeWindowMinutes * 60 * 1000
 
 test("parses the default Canadian developer configuration", () => {
@@ -29,16 +24,13 @@ test("parses the default Canadian developer configuration", () => {
 })
 
 test("accepts the legacy annualSalaryUsd option", () => {
-  const legacyParsed = parseDeveloperCostConfig({ annualSalaryUsd: 100000 })
-  assert.equal(legacyParsed.ok, true)
+  const legacyConfig = parseDeveloperCostConfig({ annualSalaryUsd: 100000 })
 
-  if (!legacyParsed.ok) return
-
-  assert.equal(legacyParsed.config.annualSalary, 100000)
+  assert.equal(legacyConfig.annualSalary, 100000)
 })
 
 test("computes the five minute developer rate", () => {
-  assert.equal(windowRateUsd(config).toFixed(2), "3.33")
+  assert.equal(windowRate(config).toFixed(2), "3.33")
 })
 
 test("bills one window for a single prompt after five minutes", () => {
@@ -46,7 +38,7 @@ test("bills one window for a single prompt after five minutes", () => {
   const prompted = recordDeveloperPrompt(emptyDeveloperCostState(), start, config)
   const settled = settleDeveloperCostState(prompted, start + windowMs, config)
 
-  assert.equal(settled.totalUsd.toFixed(2), "3.33")
+  assert.equal(settled.totalCost.toFixed(2), "3.33")
   assert.equal(settled.activeStartAtMs, undefined)
   assert.equal(settled.activeUntilMs, undefined)
 })
@@ -58,8 +50,8 @@ test("keeps one billed window when activity stops before ten minutes", () => {
   const nineMinutesLater = settleDeveloperCostState(second, start + 9 * 60 * 1000, config)
   const tenMinutesLater = settleDeveloperCostState(second, start + 10 * 60 * 1000, config)
 
-  assert.equal(nineMinutesLater.totalUsd.toFixed(2), "3.33")
-  assert.equal(tenMinutesLater.totalUsd.toFixed(2), "3.33")
+  assert.equal(nineMinutesLater.totalCost.toFixed(2), "3.33")
+  assert.equal(tenMinutesLater.totalCost.toFixed(2), "3.33")
 })
 
 test("bills two windows when prompts keep the session active for ten minutes", () => {
@@ -69,7 +61,7 @@ test("bills two windows when prompts keep the session active for ten minutes", (
   const third = recordDeveloperPrompt(second, start + 8 * 60 * 1000, config)
   const settled = settleDeveloperCostState(third, start + 10 * 60 * 1000, config)
 
-  assert.equal(settled.totalUsd.toFixed(2), "6.67")
+  assert.equal(settled.totalCost.toFixed(2), "6.67")
 })
 
 test("starts a new spell after more than five idle minutes", () => {
@@ -79,7 +71,7 @@ test("starts a new spell after more than five idle minutes", () => {
   const second = recordDeveloperPrompt(expired, start + 12 * 60 * 1000, config)
   const settled = settleDeveloperCostState(second, start + 17 * 60 * 1000, config)
 
-  assert.equal(settled.totalUsd.toFixed(2), "6.67")
+  assert.equal(settled.totalCost.toFixed(2), "6.67")
 })
 
 test("formats the accumulated cost as CAD currency by default", () => {

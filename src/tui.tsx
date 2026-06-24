@@ -5,11 +5,11 @@ import { createEffect, createMemo, createSignal } from "solid-js"
 import {
   emptyDeveloperCostState,
   formatDeveloperCost,
-  isDeveloperCostState,
+  parseDeveloperCostConfig,
+  parseDeveloperCostState,
   type DeveloperCostConfig,
   type DeveloperCostOptions,
   type DeveloperCostState,
-  parseDeveloperCostConfig,
   recordDeveloperPrompt,
   settleDeveloperCostState,
 } from "./billing.js"
@@ -40,26 +40,14 @@ function StatusChip(props: {
     return settleDeveloperCostState(state, props.now(), props.config)
   })
   const text = createMemo(() => {
-    return `${formatDeveloperCost(settled().totalUsd, props.config.currencyCode)} (${props.config.label})`
+    return `${formatDeveloperCost(settled().totalCost, props.config.currencyCode)} (${props.config.label})`
   })
 
   return <text fg={props.theme().textMuted} wrapMode="none">{text()}</text>
 }
 
 const tui: TuiPlugin = async (api, options) => {
-  const parsed = parseDeveloperCostConfig(options as DeveloperCostOptions | undefined)
-
-  if (!parsed.ok) {
-    api.ui.toast({
-      variant: "warning",
-      title: "Developer cost plugin disabled",
-      message: parsed.error,
-      duration: 5000,
-    })
-    return
-  }
-
-  const config = parsed.config
+  const config = parseDeveloperCostConfig(options as DeveloperCostOptions | undefined)
   const sessionStates = new Map<string, DeveloperCostState>()
   const loadingSessions = new Map<string, Promise<void>>()
   const [revision, setRevision] = createSignal(0)
@@ -81,11 +69,7 @@ const tui: TuiPlugin = async (api, options) => {
 
     const task = Promise.resolve().then(() => {
       const stored = api.kv.get(`${STORAGE_KEY_PREFIX}${sessionId}`)
-      if (isDeveloperCostState(stored)) {
-        sessionStates.set(sessionId, stored)
-      } else {
-        sessionStates.set(sessionId, emptyDeveloperCostState())
-      }
+      sessionStates.set(sessionId, parseDeveloperCostState(stored) ?? emptyDeveloperCostState())
       bump()
     }).finally(() => {
       loadingSessions.delete(sessionId)
