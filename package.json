@@ -33,34 +33,23 @@
       "./src/index.ts"
     ],
     "settings": {
-      "annualSalary": {
+      "monthlySalary": {
         "type": "number",
-        "default": 80000,
+        "default": 6500,
         "min": 1,
-        "description": "Annual developer salary used for the active-time meter."
+        "description": "Monthly salary used for the developer cost meter."
       },
       "hoursPerWeek": {
         "type": "number",
         "default": 40,
         "min": 1,
-        "description": "Working hours per week used for the active-time meter."
-      },
-      "weeksPerYear": {
-        "type": "number",
-        "default": 50,
-        "min": 1,
-        "description": "Working weeks per year used for the active-time meter."
+        "description": "Working hours per week used for the developer cost meter."
       },
       "activeWindowMinutes": {
         "type": "number",
         "default": 5,
         "min": 1,
         "description": "How long one prompt keeps the developer meter active."
-      },
-      "currencyCode": {
-        "type": "string",
-        "default": "CAD",
-        "description": "ISO currency code used when rendering the meter."
       },
       "label": {
         "type": "string",
