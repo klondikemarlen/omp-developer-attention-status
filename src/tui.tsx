@@ -5,7 +5,6 @@ import { createEffect, createMemo, createSignal } from "solid-js"
 import {
   emptyDeveloperCostState,
   formatDeveloperCost,
-  isActive,
   isDeveloperCostState,
   type DeveloperCostConfig,
   type DeveloperCostOptions,
@@ -18,7 +17,7 @@ const STORAGE_KEY_PREFIX = "developer-cost:session:"
 
 const SETTLE_INTERVAL_MS = 15_000
 
-type StatusTheme = Pick<TuiThemeCurrent, "accent" | "textMuted">
+type StatusTheme = Pick<TuiThemeCurrent, "textMuted">
 
 function StatusChip(props: {
   config: DeveloperCostConfig
@@ -41,10 +40,10 @@ function StatusChip(props: {
     return settleDeveloperCostState(state, props.now(), props.config)
   })
   const text = createMemo(() => {
-    return `${props.config.label} ${formatDeveloperCost(settled().totalUsd, props.config.currencyCode)}`
+    return `${formatDeveloperCost(settled().totalUsd, props.config.currencyCode)} (${props.config.label})`
   })
 
-  return <text fg={isActive(settled(), props.now()) ? props.theme().accent : props.theme().textMuted}>{text()}</text>
+  return <text fg={props.theme().textMuted} wrapMode="none">{text()}</text>
 }
 
 const tui: TuiPlugin = async (api, options) => {

@@ -1,5 +1,5 @@
 export type DeveloperCostConfig = {
-  annualSalaryUsd: number
+  annualSalary: number
   hoursPerWeek: number
   weeksPerYear: number
   activeWindowMinutes: number
@@ -16,6 +16,7 @@ export type DeveloperCostState = {
 }
 
 export type DeveloperCostOptions = {
+  annualSalary?: unknown
   annualSalaryUsd?: unknown
   hoursPerWeek?: unknown
   weeksPerYear?: unknown
@@ -28,35 +29,29 @@ export type ParsedDeveloperCostConfig =
   | { ok: true; config: DeveloperCostConfig }
   | { ok: false; error: string }
 
+const DEFAULT_ANNUAL_SALARY = 80_000
+const DEFAULT_HOURS_PER_WEEK = 40
+const DEFAULT_WEEKS_PER_YEAR = 50
 const DEFAULT_ACTIVE_WINDOW_MINUTES = 5
-const DEFAULT_CURRENCY_CODE = "USD"
-const DEFAULT_LABEL = "Dev"
+const DEFAULT_CURRENCY_CODE = "CAD"
+const DEFAULT_LABEL = "dev"
 
 export function parseDeveloperCostConfig(options: DeveloperCostOptions | undefined): ParsedDeveloperCostConfig {
-  const annualSalaryUsd = parsePositiveNumber(options?.annualSalaryUsd)
-  if (annualSalaryUsd === undefined) {
-    return { ok: false, error: "annualSalaryUsd must be a positive number" }
-  }
-
-  const hoursPerWeek = parsePositiveNumber(options?.hoursPerWeek)
-  if (hoursPerWeek === undefined) {
-    return { ok: false, error: "hoursPerWeek must be a positive number" }
-  }
-
-  const weeksPerYear = parsePositiveNumber(options?.weeksPerYear)
-  if (weeksPerYear === undefined) {
-    return { ok: false, error: "weeksPerYear must be a positive number" }
-  }
-
+  const annualSalary =
+    parsePositiveNumber(options?.annualSalary) ??
+    parsePositiveNumber(options?.annualSalaryUsd) ??
+    DEFAULT_ANNUAL_SALARY
+  const hoursPerWeek = parsePositiveNumber(options?.hoursPerWeek) ?? DEFAULT_HOURS_PER_WEEK
+  const weeksPerYear = parsePositiveNumber(options?.weeksPerYear) ?? DEFAULT_WEEKS_PER_YEAR
   const activeWindowMinutes =
     parsePositiveNumber(options?.activeWindowMinutes) ?? DEFAULT_ACTIVE_WINDOW_MINUTES
   const currencyCode = parseNonEmptyString(options?.currencyCode) ?? DEFAULT_CURRENCY_CODE
-  const label = parseNonEmptyString(options?.label) ?? DEFAULT_LABEL
+  const label = parseNonEmptyString(options?.label)?.toLowerCase() ?? DEFAULT_LABEL
 
   return {
     ok: true,
     config: {
-      annualSalaryUsd,
+      annualSalary,
       hoursPerWeek,
       weeksPerYear,
       activeWindowMinutes,
@@ -86,7 +81,7 @@ export function isDeveloperCostState(value: unknown): value is DeveloperCostStat
 export function windowRateUsd(config: DeveloperCostConfig): number {
   const annualMinutes = config.hoursPerWeek * config.weeksPerYear * 60
 
-  return (config.annualSalaryUsd / annualMinutes) * config.activeWindowMinutes
+  return (config.annualSalary / annualMinutes) * config.activeWindowMinutes
 }
 
 export function settleDeveloperCostState(
@@ -145,7 +140,7 @@ export function isActive(state: DeveloperCostState, nowMs: number): boolean {
 }
 
 export function formatDeveloperCost(valueUsd: number, currencyCode: string): string {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat(localeForCurrency(currencyCode), {
     style: "currency",
     currency: currencyCode,
     maximumFractionDigits: 2,
@@ -169,4 +164,10 @@ function parseNonEmptyString(value: unknown): string | undefined {
 
 function activeWindowMs(config: DeveloperCostConfig): number {
   return config.activeWindowMinutes * 60 * 1000
+}
+
+function localeForCurrency(currencyCode: string): string {
+  if (currencyCode === "CAD") return "en-CA"
+
+  return "en-US"
 }
