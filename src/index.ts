@@ -17,11 +17,14 @@ import { DEVELOPER_COST_STATE_ENTRY, loadPersistedDeveloperCostState } from "./s
 const PLUGIN_NAME = "omp-developer-cost-status"
 const STATUS_KEY = "developer-cost-status"
 const DEFAULT_REFRESH_INTERVAL_MS = refreshIntervalMs(parseDeveloperCostConfig())
+const CONFIG_POLL_INTERVAL_MS = 1_000
 
 type RuntimeState = {
   activeContext?: ExtensionContext
   activeSessionId?: string
-  activeConfig?: DeveloperCostConfig
+  refreshTimer?: ReturnType<typeof setTimeout>
+  configPollTimer?: ReturnType<typeof setTimeout>
+  configSignature?: string
 }
 
 type PluginSettingsByName = Record<string, Record<string, unknown>>
@@ -99,16 +102,8 @@ export default function developerCostStatusExtension(pi: ExtensionApi) {
   const runtimeState: RuntimeState = {}
   const sessionStates = new Map<string, DeveloperCostState>()
 
-  const scheduleNextRefresh = (waitMs = DEFAULT_REFRESH_INTERVAL_MS): void => {
-    const timer = setTimeout(async () => {
-      const nextWaitMs = await refreshActiveStatus(sessionStates, runtimeState)
-      scheduleNextRefresh(nextWaitMs)
-    }, waitMs)
-
-    timer.unref?.()
-  }
-
-  scheduleNextRefresh()
+  scheduleNextRefresh(sessionStates, runtimeState)
+  scheduleConfigPoll(sessionStates, runtimeState)
 
   pi.registerCommand("developer-cost-status", {
     description: "Show the developer cost meter for the current session",
@@ -149,7 +144,6 @@ export default function developerCostStatusExtension(pi: ExtensionApi) {
     sessionStates.set(sessionId, nextState)
     runtimeState.activeContext = ctx
     runtimeState.activeSessionId = sessionId
-    runtimeState.activeConfig = config
 
     pi.appendEntry(DEVELOPER_COST_STATE_ENTRY, nextState)
     updateStatus(ctx, settleDeveloperCostState(nextState, promptAtMs, config), config)
@@ -166,8 +160,6 @@ export default function developerCostStatusExtension(pi: ExtensionApi) {
     sessionStates.set(sessionId, settledState)
     runtimeState.activeContext = ctx
     runtimeState.activeSessionId = sessionId
-    runtimeState.activeConfig = config
-
     updateStatus(ctx, settledState, config)
   })
 
@@ -196,8 +188,6 @@ async function activateSession(
   sessionStates.set(sessionId, settledState)
   runtimeState.activeContext = ctx
   runtimeState.activeSessionId = sessionId
-  runtimeState.activeConfig = config
-
   updateStatus(ctx, settledState, config)
 }
 
@@ -221,23 +211,73 @@ async function refreshActiveStatus(
   const settledState = settleDeveloperCostState(currentState, Date.now(), config)
 
   sessionStates.set(runtimeState.activeSessionId, settledState)
-  runtimeState.activeConfig = config
   updateStatus(runtimeState.activeContext, settledState, config)
 
   return refreshIntervalMs(config)
+}
+
+function scheduleNextRefresh(
+  sessionStates: Map<string, DeveloperCostState>,
+  runtimeState: RuntimeState,
+  waitMs = DEFAULT_REFRESH_INTERVAL_MS,
+): void {
+  if (runtimeState.refreshTimer !== undefined) {
+    clearTimeout(runtimeState.refreshTimer)
+  }
+
+  const timer = setTimeout(async () => {
+    runtimeState.refreshTimer = undefined
+    const nextWaitMs = await refreshActiveStatus(sessionStates, runtimeState)
+    scheduleNextRefresh(sessionStates, runtimeState, nextWaitMs)
+  }, waitMs)
+
+  timer.unref?.()
+  runtimeState.refreshTimer = timer
+}
+
+function scheduleConfigPoll(
+  sessionStates: Map<string, DeveloperCostState>,
+  runtimeState: RuntimeState,
+): void {
+  if (runtimeState.configPollTimer !== undefined) {
+    clearTimeout(runtimeState.configPollTimer)
+  }
+
+  const timer = setTimeout(async () => {
+    runtimeState.configPollTimer = undefined
+
+    if (await hasConfigChanged(runtimeState)) {
+      const nextWaitMs = await refreshActiveStatus(sessionStates, runtimeState)
+      scheduleNextRefresh(sessionStates, runtimeState, nextWaitMs)
+    }
+
+    scheduleConfigPoll(sessionStates, runtimeState)
+  }, CONFIG_POLL_INTERVAL_MS)
+
+  timer.unref?.()
+  runtimeState.configPollTimer = timer
 }
 
 function clearActiveStatus(runtimeState: RuntimeState, ctx: ExtensionContext): void {
   ctx.ui.setStatus(STATUS_KEY, undefined)
   runtimeState.activeContext = undefined
   runtimeState.activeSessionId = undefined
-  runtimeState.activeConfig = undefined
 }
 
 async function loadConfig(ctx: ExtensionContext): Promise<DeveloperCostConfig> {
+  return loadDeveloperCostConfigFromFiles(
+    pluginsLockfilePath(),
+    projectPluginOverridesPath(ctx.cwd),
+  )
+}
+
+export async function loadDeveloperCostConfigFromFiles(
+  pluginsLockfile: string,
+  projectPluginOverrides: string,
+): Promise<DeveloperCostConfig> {
   const [runtimeConfig, projectOverrides] = await Promise.all([
-    readJsonFile<PluginRuntimeConfig>(pluginsLockfilePath()),
-    readJsonFile<ProjectPluginOverrides>(projectPluginOverridesPath(ctx.cwd)),
+    readJsonFile<PluginRuntimeConfig>(pluginsLockfile),
+    readJsonFile<ProjectPluginOverrides>(projectPluginOverrides),
   ])
   const globalSettings = runtimeConfig?.settings?.[PLUGIN_NAME] ?? {}
   const projectSettings = projectOverrides?.settings?.[PLUGIN_NAME] ?? {}
@@ -261,7 +301,10 @@ function stateForSession(
   ctx: ExtensionContext,
   sessionId: string,
 ): DeveloperCostState {
-  return sessionStates.get(sessionId) ?? loadPersistedDeveloperCostState(ctx.sessionManager.getBranch())
+  return (
+    sessionStates.get(sessionId) ??
+    loadPersistedDeveloperCostState(ctx.sessionManager.getBranch())
+  )
 }
 
 function updateStatus(
@@ -269,13 +312,58 @@ function updateStatus(
   state: DeveloperCostState,
   config: DeveloperCostConfig,
 ): void {
-  ctx.ui.setStatus(STATUS_KEY, ctx.ui.theme.fg("dim", statusText(state, Date.now(), config)))
+  ctx.ui.setStatus(
+    STATUS_KEY,
+    ctx.ui.theme.fg("dim", statusText(state, Date.now(), config)),
+  )
 }
 
 function statusText(state: DeveloperCostState, nowMs: number, config: DeveloperCostConfig): string {
   const text = formatDeveloperCost(displayedDeveloperCost(state, nowMs, config))
 
   return `${text} (${config.label})`
+}
+
+async function hasConfigChanged(runtimeState: RuntimeState): Promise<boolean> {
+  const nextSignature = await runtimeConfigSignature(runtimeState.activeContext)
+
+  if (runtimeState.configSignature === undefined) {
+    runtimeState.configSignature = nextSignature
+    return false
+  }
+
+  if (runtimeState.configSignature === nextSignature) return false
+
+  runtimeState.configSignature = nextSignature
+  return true
+}
+
+async function runtimeConfigSignature(ctx?: ExtensionContext): Promise<string> {
+  const filePaths = [pluginsLockfilePath()]
+
+  if (ctx !== undefined) {
+    filePaths.push(projectPluginOverridesPath(ctx.cwd))
+  }
+
+  return readConfigSignature(filePaths)
+}
+
+export async function readConfigSignature(filePaths: string[]): Promise<string> {
+  const fileSignatures = await Promise.all(filePaths.map(readConfigFileSignature))
+
+  return fileSignatures.join("\n")
+}
+
+async function readConfigFileSignature(filePath: string): Promise<string> {
+  try {
+    const raw = await fs.promises.readFile(filePath, "utf8")
+
+    return `${filePath}:${raw}`
+  } catch (error) {
+    if (isEnoent(error)) return `${filePath}:missing`
+
+    return `${filePath}:unreadable`
+  }
 }
 
 async function readJsonFile<T>(filePath: string): Promise<T | undefined> {

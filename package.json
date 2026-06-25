@@ -1,6 +1,6 @@
 {
   "name": "omp-developer-cost-status",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "Developer time cost status line plugin for OMP.",
   "type": "module",
   "license": "MIT",
@@ -45,6 +45,12 @@
         "min": 1,
         "description": "Working hours per week used for the developer cost meter."
       },
+      "weeksPerYear": {
+        "type": "number",
+        "default": 52,
+        "min": 1,
+        "description": "Working weeks per year used for the developer cost meter."
+      },
       "activeWindowMinutes": {
         "type": "number",
         "default": 5,
@@ -53,7 +59,7 @@
       },
       "refreshIntervalSeconds": {
         "type": "number",
-        "default": 5,
+        "default": 15,
         "min": 1,
         "description": "How often the status text refreshes while the meter is active."
       },
