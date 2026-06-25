@@ -1,6 +1,7 @@
 export type DeveloperCostConfig = {
   monthlySalary: number
   hoursPerWeek: number
+  weeksPerYear: number
   activeWindowMinutes: number
   refreshIntervalSeconds: number
   label: string
@@ -17,6 +18,7 @@ export type DeveloperCostState = {
 export type DeveloperCostOptions = {
   monthlySalary?: unknown
   hoursPerWeek?: unknown
+  weeksPerYear?: unknown
   activeWindowMinutes?: unknown
   refreshIntervalSeconds?: unknown
   label?: unknown
@@ -24,11 +26,11 @@ export type DeveloperCostOptions = {
 
 const DEFAULT_MONTHLY_SALARY = 6_500
 const DEFAULT_HOURS_PER_WEEK = 40
+const DEFAULT_WEEKS_PER_YEAR = 52
 const DEFAULT_ACTIVE_WINDOW_MINUTES = 5
-const DEFAULT_REFRESH_INTERVAL_SECONDS = 5
+const DEFAULT_REFRESH_INTERVAL_SECONDS = 15
 const DEFAULT_LABEL = "dev"
 const MONTHS_PER_YEAR = 12
-const WEEKS_PER_YEAR = 52
 const MINUTES_PER_HOUR = 60
 const MS_PER_MINUTE = 60 * 1000
 
@@ -36,6 +38,7 @@ export function parseDeveloperCostConfig(options?: DeveloperCostOptions): Develo
   return {
     monthlySalary: parsePositiveNumber(options?.monthlySalary) ?? DEFAULT_MONTHLY_SALARY,
     hoursPerWeek: parsePositiveNumber(options?.hoursPerWeek) ?? DEFAULT_HOURS_PER_WEEK,
+    weeksPerYear: parsePositiveNumber(options?.weeksPerYear) ?? DEFAULT_WEEKS_PER_YEAR,
     activeWindowMinutes:
       parsePositiveNumber(options?.activeWindowMinutes) ?? DEFAULT_ACTIVE_WINDOW_MINUTES,
     refreshIntervalSeconds:
@@ -68,7 +71,8 @@ export function parseDeveloperCostState(value: unknown): DeveloperCostState | un
 }
 
 export function windowRate(config: DeveloperCostConfig): number {
-  const monthlyMinutes = (config.hoursPerWeek * WEEKS_PER_YEAR * MINUTES_PER_HOUR) / MONTHS_PER_YEAR
+  const monthlyMinutes =
+    (config.hoursPerWeek * config.weeksPerYear * MINUTES_PER_HOUR) / MONTHS_PER_YEAR
 
   return (config.monthlySalary / monthlyMinutes) * config.activeWindowMinutes
 }

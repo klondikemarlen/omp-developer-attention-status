@@ -19,17 +19,29 @@ const windowMs = config.activeWindowMinutes * 60 * 1000
 test("parses the default configuration", () => {
   assert.equal(config.monthlySalary, 6_500)
   assert.equal(config.hoursPerWeek, 40)
+  assert.equal(config.weeksPerYear, 52)
   assert.equal(config.activeWindowMinutes, 5)
-  assert.equal(config.refreshIntervalSeconds, 5)
+  assert.equal(config.refreshIntervalSeconds, 15)
   assert.equal(config.label, "dev")
 })
 
 test("computes the configured refresh interval", () => {
-  assert.equal(refreshIntervalMs(config), 5_000)
+  assert.equal(refreshIntervalMs(config), 15_000)
 })
 
 test("computes the five minute developer rate", () => {
   assert.equal(windowRate(config).toFixed(2), "3.13")
+})
+
+test("supports custom working weeks per year", () => {
+  const customConfig = parseDeveloperCostConfig({
+    monthlySalary: 6_500,
+    hoursPerWeek: 40,
+    weeksPerYear: 49,
+    activeWindowMinutes: 5,
+  })
+
+  assert.equal(windowRate(customConfig).toFixed(2), "3.32")
 })
 
 test("shows a live partial value before a window settles", () => {
