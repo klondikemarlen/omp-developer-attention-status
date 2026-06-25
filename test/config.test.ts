@@ -4,10 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import test from "node:test"
 
-import {
-  loadDeveloperCostConfigFromFiles,
-  readConfigSignature,
-} from "../src/index.js"
+import { loadDeveloperCostConfigFromFiles } from "../src/index.js"
 
 const PLUGIN_NAME = "omp-developer-cost-status"
 
@@ -38,51 +35,6 @@ test("loads updated plugin settings from disk", async () => {
     assert.equal(secondConfig.monthlySalary, 9_000)
     assert.equal(secondConfig.refreshIntervalSeconds, 3)
     assert.equal(secondConfig.label, "second")
-  } finally {
-    await rm(directory, { recursive: true, force: true })
-  }
-})
-
-test("detects plugin settings changes and ignores unrelated lockfile changes", async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), "developer-cost-signature-"))
-  const pluginsLockfile = path.join(directory, "omp-plugins.lock.json")
-
-  try {
-    await writePluginLockfile(pluginsLockfile, {
-      [PLUGIN_NAME]: {
-        monthlySalary: 6_500,
-      },
-      unrelatedPlugin: {
-        enabled: true,
-      },
-    })
-
-    const firstSignature = await readConfigSignature([pluginsLockfile])
-
-    await writePluginLockfile(pluginsLockfile, {
-      [PLUGIN_NAME]: {
-        monthlySalary: 6_500,
-      },
-      unrelatedPlugin: {
-        enabled: false,
-      },
-    })
-
-    const unrelatedSignature = await readConfigSignature([pluginsLockfile])
-
-    await writePluginLockfile(pluginsLockfile, {
-      [PLUGIN_NAME]: {
-        monthlySalary: 9_000,
-      },
-      unrelatedPlugin: {
-        enabled: false,
-      },
-    })
-
-    const secondSignature = await readConfigSignature([pluginsLockfile])
-
-    assert.equal(unrelatedSignature, firstSignature)
-    assert.notEqual(secondSignature, firstSignature)
   } finally {
     await rm(directory, { recursive: true, force: true })
   }

@@ -17,14 +17,11 @@ import { DEVELOPER_COST_STATE_ENTRY, loadPersistedDeveloperCostState } from "./s
 const PLUGIN_NAME = "omp-developer-cost-status"
 const STATUS_KEY = "developer-cost-status"
 const DEFAULT_REFRESH_INTERVAL_MS = refreshIntervalMs(parseDeveloperCostConfig())
-const CONFIG_POLL_INTERVAL_MS = 1_000
 
 type RuntimeState = {
   activeContext?: ExtensionContext
   activeSessionId?: string
   refreshTimer?: ReturnType<typeof setTimeout>
-  configPollTimer?: ReturnType<typeof setTimeout>
-  configSignature?: string
 }
 
 type PluginSettingsByName = Record<string, Record<string, unknown>>
@@ -103,7 +100,6 @@ export default function developerCostStatusExtension(pi: ExtensionApi) {
   const sessionStates = new Map<string, DeveloperCostState>()
 
   scheduleNextRefresh(sessionStates, runtimeState)
-  scheduleConfigPoll(sessionStates, runtimeState)
 
   pi.registerCommand("developer-cost-status", {
     description: "Show the developer cost meter for the current session",
@@ -235,29 +231,6 @@ function scheduleNextRefresh(
   runtimeState.refreshTimer = timer
 }
 
-function scheduleConfigPoll(
-  sessionStates: Map<string, DeveloperCostState>,
-  runtimeState: RuntimeState,
-): void {
-  if (runtimeState.configPollTimer !== undefined) {
-    clearTimeout(runtimeState.configPollTimer)
-  }
-
-  const timer = setTimeout(async () => {
-    runtimeState.configPollTimer = undefined
-
-    if (await hasConfigChanged(runtimeState)) {
-      const nextWaitMs = await refreshActiveStatus(sessionStates, runtimeState)
-      scheduleNextRefresh(sessionStates, runtimeState, nextWaitMs)
-    }
-
-    scheduleConfigPoll(sessionStates, runtimeState)
-  }, CONFIG_POLL_INTERVAL_MS)
-
-  timer.unref?.()
-  runtimeState.configPollTimer = timer
-}
-
 function clearActiveStatus(runtimeState: RuntimeState, ctx: ExtensionContext): void {
   ctx.ui.setStatus(STATUS_KEY, undefined)
   runtimeState.activeContext = undefined
@@ -322,67 +295,6 @@ function statusText(state: DeveloperCostState, config: DeveloperCostConfig): str
   const text = formatDeveloperCost(displayedDeveloperCost(state))
 
   return `${text} (${config.label})`
-}
-
-async function hasConfigChanged(runtimeState: RuntimeState): Promise<boolean> {
-  const nextSignature = await runtimeConfigSignature(runtimeState.activeContext)
-
-  if (runtimeState.configSignature === undefined) {
-    runtimeState.configSignature = nextSignature
-    return false
-  }
-
-  if (runtimeState.configSignature === nextSignature) return false
-
-  runtimeState.configSignature = nextSignature
-  return true
-}
-
-async function runtimeConfigSignature(ctx?: ExtensionContext): Promise<string> {
-  const filePaths = [pluginsLockfilePath()]
-
-  if (ctx !== undefined) {
-    filePaths.push(projectPluginOverridesPath(ctx.cwd))
-  }
-
-  return readConfigSignature(filePaths)
-}
-
-export async function readConfigSignature(filePaths: string[]): Promise<string> {
-  const fileSignatures = await Promise.all(filePaths.map(readPluginSettingsSignature))
-
-  return fileSignatures.join("\n")
-}
-
-async function readPluginSettingsSignature(filePath: string): Promise<string> {
-  try {
-    const raw = await fs.promises.readFile(filePath, "utf8")
-    const parsed = JSON.parse(raw) as PluginRuntimeConfig | ProjectPluginOverrides
-    const settings = parsed.settings?.[PLUGIN_NAME] ?? {}
-
-    return `${filePath}:${stableStringify(settings)}`
-  } catch (error) {
-    if (isEnoent(error)) return `${filePath}:missing`
-
-    return `${filePath}:unreadable`
-  }
-}
-
-function stableStringify(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(",")}]`
-  }
-
-  if (typeof value === "object" && value !== null) {
-    const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) =>
-      left.localeCompare(right),
-    )
-    const parts = entries.map(([key, entry]) => `${JSON.stringify(key)}:${stableStringify(entry)}`)
-
-    return `{${parts.join(",")}}`
-  }
-
-  return JSON.stringify(value)
 }
 
 async function readJsonFile<T>(filePath: string): Promise<T | undefined> {

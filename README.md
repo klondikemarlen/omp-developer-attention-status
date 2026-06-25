@@ -153,8 +153,9 @@ omp plugin config set omp-developer-cost-status refreshIntervalSeconds 10
 omp plugin config set omp-developer-cost-status label dev
 ```
 
-Setting changes are picked up by the running plugin within about one second. You only need
-`/reload-plugins` or a restart after changing plugin code or install state.
+Setting changes are picked up on the next status refresh while a session is active. With the
+default settings, that means within about 15 seconds. You only need `/reload-plugins` or a
+restart after changing plugin code or install state.
 
 ## Status command
 
