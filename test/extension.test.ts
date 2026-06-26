@@ -77,15 +77,49 @@ test("activates persisted state from full session history", async () => {
   assert.equal(runtime.statusText, "dim:$12.34 (dev)")
 })
 
-test("clears status and skips billing for child sessions", async () => {
+test("skips billing for child sessions without clearing parent prompt status", async () => {
   const runtime = createExtensionRuntime()
-  const ctx = createContext(runtime, { parentSession: "/tmp/parent.jsonl" })
-  runtime.statusText = "dim:$1.23 (dev)"
+  const parentCtx = createContext(runtime, {
+    parentSession: undefined,
+    sessionId: "parent-session",
+  })
+  const childCtx = createContext(runtime, {
+    parentSession: "/tmp/parent.jsonl",
+    sessionId: "child-session",
+  })
 
-  await runtime.handlers.get("before_agent_start")?.({ prompt: "hello" } as never, ctx as never)
+  await runtime.handlers.get("before_agent_start")?.(
+    { prompt: "parent prompt" } as never,
+    parentCtx as never,
+  )
+  await runtime.handlers.get("before_agent_start")?.(
+    { prompt: "child prompt" } as never,
+    childCtx as never,
+  )
 
-  assert.equal(runtime.entries.length, 0)
-  assert.equal(runtime.statusText, undefined)
+  assert.equal(runtime.entries.length, 1)
+  assert.equal(runtime.statusText, "dim:$0.00 (dev)")
+})
+
+test("skips child session activation without clearing parent status", async () => {
+  const runtime = createExtensionRuntime()
+  const parentCtx = createContext(runtime, {
+    parentSession: undefined,
+    sessionId: "parent-session",
+  })
+  const childCtx = createContext(runtime, {
+    parentSession: "/tmp/parent.jsonl",
+    sessionId: "child-session",
+  })
+
+  await runtime.handlers.get("before_agent_start")?.(
+    { prompt: "parent prompt" } as never,
+    parentCtx as never,
+  )
+  await runtime.handlers.get("session_start")?.({ reason: "start" } as never, childCtx as never)
+
+  assert.equal(runtime.entries.length, 1)
+  assert.equal(runtime.statusText, "dim:$0.00 (dev)")
 })
 
 test("reports child sessions from the status command", async () => {
@@ -241,13 +275,14 @@ function createContext(
     parentSession?: string
     branchEntries?: Runtime["entries"]
     allEntries?: Runtime["entries"]
+    sessionId?: string
   },
 ) {
   return {
     cwd: path.join(tmpdir(), "developer-cost-extension-test"),
     sessionManager: {
       getSessionId() {
-        return "session-1"
+        return options.sessionId ?? "session-1"
       },
       getHeader() {
         return {
