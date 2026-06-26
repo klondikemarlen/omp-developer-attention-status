@@ -28,6 +28,24 @@ test("parses the default configuration", () => {
   assert.equal(config.label, "dev")
 })
 
+test("defaults empty and invalid configuration values", () => {
+  const defaultedConfig = parseDeveloperCostConfig({
+    monthlySalary: 0,
+    hoursPerWeek: -1,
+    weeksPerYear: "",
+    activeWindowMinutes: undefined,
+    refreshIntervalSeconds: Number.NaN,
+    label: "",
+  })
+
+  assert.equal(defaultedConfig.monthlySalary, 6_500)
+  assert.equal(defaultedConfig.hoursPerWeek, 40)
+  assert.equal(defaultedConfig.weeksPerYear, 52)
+  assert.equal(defaultedConfig.activeWindowMinutes, 5)
+  assert.equal(defaultedConfig.refreshIntervalSeconds, 15)
+  assert.equal(defaultedConfig.label, "dev")
+})
+
 test("computes the configured refresh interval", () => {
   assert.equal(refreshIntervalMs(config), 15_000)
 })

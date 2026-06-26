@@ -1,5 +1,10 @@
 import Big from "big.js"
 
+import { parseDecimalString } from "./utils/parse-decimal-string.js"
+import { parseNonEmptyString } from "./utils/parse-non-empty-string.js"
+import { parseOptionalNumber } from "./utils/parse-optional-number.js"
+import { parsePositiveNumber } from "./utils/parse-positive-number.js"
+
 export type DeveloperCostConfig = {
   monthlySalary: number
   hoursPerWeek: number
@@ -40,14 +45,31 @@ const MS_PER_MINUTE = SECONDS_PER_MINUTE * MS_PER_SECOND
 const MS_PER_HOUR = MINUTES_PER_HOUR * MS_PER_MINUTE
 
 export function parseDeveloperCostConfig(options?: DeveloperCostOptions): DeveloperCostConfig {
-  const monthlySalary = parsePositiveNumber(options?.monthlySalary) ?? DEFAULT_MONTHLY_SALARY
-  const hoursPerWeek = parsePositiveNumber(options?.hoursPerWeek) ?? DEFAULT_HOURS_PER_WEEK
-  const weeksPerYear = parsePositiveNumber(options?.weeksPerYear) ?? DEFAULT_WEEKS_PER_YEAR
-  const activeWindowMinutes =
-    parsePositiveNumber(options?.activeWindowMinutes) ?? DEFAULT_ACTIVE_WINDOW_MINUTES
-  const refreshIntervalSeconds =
-    parsePositiveNumber(options?.refreshIntervalSeconds) ?? DEFAULT_REFRESH_INTERVAL_SECONDS
-  const label = parseNonEmptyString(options?.label)?.toLowerCase() ?? DEFAULT_LABEL
+  const rawMonthlySalary = options?.monthlySalary || DEFAULT_MONTHLY_SALARY
+  const rawHoursPerWeek = options?.hoursPerWeek || DEFAULT_HOURS_PER_WEEK
+  const rawWeeksPerYear = options?.weeksPerYear || DEFAULT_WEEKS_PER_YEAR
+  const rawActiveWindowMinutes = options?.activeWindowMinutes || DEFAULT_ACTIVE_WINDOW_MINUTES
+  const rawRefreshIntervalSeconds =
+    options?.refreshIntervalSeconds || DEFAULT_REFRESH_INTERVAL_SECONDS
+  const rawLabel = options?.label || DEFAULT_LABEL
+
+  const parsedMonthlySalary = parsePositiveNumber(rawMonthlySalary)
+  const monthlySalary = parsedMonthlySalary ?? DEFAULT_MONTHLY_SALARY
+
+  const parsedHoursPerWeek = parsePositiveNumber(rawHoursPerWeek)
+  const hoursPerWeek = parsedHoursPerWeek ?? DEFAULT_HOURS_PER_WEEK
+
+  const parsedWeeksPerYear = parsePositiveNumber(rawWeeksPerYear)
+  const weeksPerYear = parsedWeeksPerYear ?? DEFAULT_WEEKS_PER_YEAR
+
+  const parsedActiveWindowMinutes = parsePositiveNumber(rawActiveWindowMinutes)
+  const activeWindowMinutes = parsedActiveWindowMinutes ?? DEFAULT_ACTIVE_WINDOW_MINUTES
+
+  const parsedRefreshIntervalSeconds = parsePositiveNumber(rawRefreshIntervalSeconds)
+  const refreshIntervalSeconds = parsedRefreshIntervalSeconds ?? DEFAULT_REFRESH_INTERVAL_SECONDS
+
+  const parsedLabel = parseNonEmptyString(rawLabel)
+  const label = parsedLabel?.toLowerCase() ?? DEFAULT_LABEL
 
   return {
     monthlySalary,
@@ -159,42 +181,6 @@ function costForActiveMs(config: DeveloperCostConfig, activeMs: number): Big {
   const annualMs = Big(config.hoursPerWeek).times(config.weeksPerYear).times(MS_PER_HOUR)
 
   return annualSalary.times(activeMs).div(annualMs)
-}
-
-function parsePositiveNumber(value: unknown): number | undefined {
-  if (!isFiniteNumber(value) || value <= 0) return undefined
-
-  return value
-}
-
-function parseOptionalNumber(value: unknown): number | undefined {
-  if (!isFiniteNumber(value)) return undefined
-
-  return value
-}
-
-function parseNonEmptyString(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined
-
-  const trimmed = value.trim()
-  if (!trimmed) return undefined
-
-  return trimmed
-}
-
-function parseDecimalString(value: unknown): string | undefined {
-  if (isFiniteNumber(value)) return Big(value).toString()
-  if (typeof value !== "string") return undefined
-
-  try {
-    return Big(value).toString()
-  } catch {
-    return undefined
-  }
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value)
 }
 
 function activeWindowMs(config: DeveloperCostConfig): number {
