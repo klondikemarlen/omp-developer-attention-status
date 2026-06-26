@@ -1,3 +1,4 @@
+export { Billing } from "./billing.js"
 export { activeWindowMs } from "./active-window-ms.js"
 export { costForActiveMs } from "./cost-for-active-ms.js"
 export type {

@@ -21,10 +21,27 @@ const windowMs = config.activeWindowMinutes * 60 * 1000
 const refreshMs = refreshIntervalMs(config)
 
 test("exports billing modules through folder index and legacy shim", () => {
+  assert.equal(billing.Billing, billingShim.Billing)
   assert.equal(billing.parseDeveloperCostConfig, parseDeveloperCostConfig)
   assert.equal(billing.recordDeveloperPrompt, recordDeveloperPrompt)
   assert.equal(billingShim.parseDeveloperCostConfig, parseDeveloperCostConfig)
   assert.equal(billingShim.recordDeveloperPrompt, recordDeveloperPrompt)
+})
+
+test("groups billing behavior behind the singleton facade", () => {
+  const billingInstance = billing.Billing.instance
+  const start = Date.UTC(2026, 0, 1, 12, 0, 0)
+  const singletonConfig = billingInstance.parseConfig()
+  const prompted = billingInstance.recordPrompt(
+    billingInstance.emptyState(),
+    start,
+    singletonConfig,
+  )
+  const settled = billingInstance.settleState(prompted, start + refreshMs, singletonConfig)
+
+  assert.equal(billingInstance.refreshIntervalMs(singletonConfig), refreshMs)
+  assert.equal(billingInstance.displayedCost(settled).toFixed(2), "0.16")
+  assert.equal(billingInstance.formatCost(Big("3.125")), "$3.13")
 })
 
 test("parses the default configuration", () => {

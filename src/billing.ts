@@ -1,3 +1,4 @@
+export { Billing } from "./billing/index.js"
 export {
   activeWindowMs,
   costForActiveMs,
