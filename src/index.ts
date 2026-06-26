@@ -1,6 +1,3 @@
-import fs from "node:fs"
-import { homedir } from "node:os"
-import path from "node:path"
 import {
   displayedDeveloperCost,
   formatDeveloperCost,
@@ -9,29 +6,27 @@ import {
   refreshIntervalMs,
   settleDeveloperCostState,
   type DeveloperCostConfig,
-  type DeveloperCostOptions,
   type DeveloperCostState,
 } from "./billing.js"
+import { loadDeveloperCostConfig, loadDeveloperCostConfigFromFiles } from "./config-loader.js"
 import { DEVELOPER_COST_STATE_ENTRY, loadPersistedDeveloperCostState } from "./session-state.js"
+import { isTopLevelSession } from "./session-classification.js"
 
-const PLUGIN_NAME = "omp-developer-cost-status"
+export { loadDeveloperCostConfigFromFiles }
+
 const STATUS_KEY = "developer-cost-status"
 const DEFAULT_REFRESH_INTERVAL_MS = refreshIntervalMs(parseDeveloperCostConfig())
+
+type RefreshTimer = NodeJS.Timeout
 
 type RuntimeState = {
   activeContext?: ExtensionContext
   activeSessionId?: string
-  refreshTimer?: ReturnType<typeof setTimeout>
+  refreshTimer?: RefreshTimer
 }
 
-type PluginSettingsByName = Record<string, Record<string, unknown>>
-
-type PluginRuntimeConfig = {
-  settings?: PluginSettingsByName
-}
-
-type ProjectPluginOverrides = {
-  settings?: PluginSettingsByName
+type SessionHeaderLike = {
+  parentSession?: unknown
 }
 
 type SessionEntryLike = {
@@ -42,8 +37,9 @@ type SessionEntryLike = {
 
 type SessionManagerLike = {
   getSessionId(): string
-  getSessionFile(): string | undefined
+  getHeader(): SessionHeaderLike | null
   getBranch(): SessionEntryLike[]
+  getEntries(): SessionEntryLike[]
 }
 
 type ThemeLike = {
@@ -79,7 +75,7 @@ type TurnEndHandler = (
   ctx: ExtensionContext,
 ) => Promise<void>
 
-type ExtensionApi = {
+export type ExtensionApi = {
   registerCommand(
     name: string,
     options: {
@@ -95,21 +91,29 @@ type ExtensionApi = {
   appendEntry(customType: string, data?: unknown): void
 }
 
-export default function developerCostStatusExtension(pi: ExtensionApi) {
+type ConfigLoader = (cwd: string) => Promise<DeveloperCostConfig>
+
+type ExtensionOptions = {
+  loadConfig?: ConfigLoader
+}
+
+export default function developerCostStatusExtension(pi: ExtensionApi, options: ExtensionOptions = {}) {
   const runtimeState: RuntimeState = {}
   const sessionStates = new Map<string, DeveloperCostState>()
+  const loadConfig = options.loadConfig ?? loadDeveloperCostConfig
 
-  scheduleNextRefresh(pi, sessionStates, runtimeState)
+  scheduleNextRefresh(pi, sessionStates, runtimeState, loadConfig)
 
   pi.registerCommand("developer-cost-status", {
     description: "Show the developer cost meter for the current session",
     handler: async (_args, ctx) => {
-      if (!isTopLevelSession(ctx)) {
+      if (!isTopLevelSession(ctx.sessionManager)) {
         ctx.ui.notify("Developer cost status is only tracked for top-level sessions.", "info")
         return
       }
 
-      const config = await loadConfig(ctx)
+      const config = await loadConfigForStatus(loadConfig, ctx)
+      if (config === undefined) return
       const state = stateForSession(sessionStates, ctx, ctx.sessionManager.getSessionId())
       const settledState = settleDeveloperCostState(state, Date.now(), config)
 
@@ -118,20 +122,24 @@ export default function developerCostStatusExtension(pi: ExtensionApi) {
   })
 
   pi.on("session_start", async (_event, ctx) => {
-    await activateSession(sessionStates, runtimeState, ctx)
+    await activateSession(sessionStates, runtimeState, loadConfig, ctx)
   })
 
   pi.on("session_switch", async (_event, ctx) => {
-    await activateSession(sessionStates, runtimeState, ctx)
+    await activateSession(sessionStates, runtimeState, loadConfig, ctx)
   })
 
   pi.on("before_agent_start", async (_event, ctx) => {
-    if (!isTopLevelSession(ctx)) {
+    if (!isTopLevelSession(ctx.sessionManager)) {
       clearActiveStatus(runtimeState, ctx)
       return
     }
 
-    const config = await loadConfig(ctx)
+    const config = await loadConfigForStatus(loadConfig, ctx)
+    if (config === undefined) {
+      clearActiveStatus(runtimeState, ctx)
+      return
+    }
     const sessionId = ctx.sessionManager.getSessionId()
     const currentState = stateForSession(sessionStates, ctx, sessionId)
     const promptAtMs = Date.now()
@@ -146,9 +154,13 @@ export default function developerCostStatusExtension(pi: ExtensionApi) {
   })
 
   pi.on("turn_end", async (_event, ctx) => {
-    if (!isTopLevelSession(ctx)) return
+    if (!isTopLevelSession(ctx.sessionManager)) return
 
-    const config = await loadConfig(ctx)
+    const config = await loadConfigForStatus(loadConfig, ctx)
+    if (config === undefined) {
+      clearActiveStatus(runtimeState, ctx)
+      return
+    }
     const sessionId = ctx.sessionManager.getSessionId()
     const currentState = stateForSession(sessionStates, ctx, sessionId)
     const settledState = settleDeveloperCostState(currentState, Date.now(), config)
@@ -169,21 +181,29 @@ export default function developerCostStatusExtension(pi: ExtensionApi) {
 async function activateSession(
   sessionStates: Map<string, DeveloperCostState>,
   runtimeState: RuntimeState,
+  loadConfig: ConfigLoader,
   ctx: ExtensionContext,
 ): Promise<void> {
-  if (!isTopLevelSession(ctx)) {
+  if (!isTopLevelSession(ctx.sessionManager)) {
     clearActiveStatus(runtimeState, ctx)
     return
   }
 
-  const config = await loadConfig(ctx)
+  const config = await loadConfigForStatus(loadConfig, ctx)
+  if (config === undefined) {
+    clearActiveStatus(runtimeState, ctx)
+    return
+  }
   const sessionId = ctx.sessionManager.getSessionId()
-  const state = loadPersistedDeveloperCostState(ctx.sessionManager.getBranch())
+  const state = loadPersistedDeveloperCostState(ctx.sessionManager.getEntries())
   const settledState = settleDeveloperCostState(state, Date.now(), config)
 
   sessionStates.set(sessionId, settledState)
-  runtimeState.activeContext = ctx
-  runtimeState.activeSessionId = sessionId
+  rememberActiveSession(runtimeState, ctx, sessionId, settledState)
+  if (settledState.activeUntilMs === undefined) {
+    clearActiveStatus(runtimeState, ctx)
+    return
+  }
   updateStatus(ctx, settledState, config)
 }
 
@@ -191,6 +211,7 @@ async function refreshActiveStatus(
   pi: ExtensionApi,
   sessionStates: Map<string, DeveloperCostState>,
   runtimeState: RuntimeState,
+  loadConfig: ConfigLoader,
 ): Promise<number> {
   if (
     runtimeState.activeContext === undefined ||
@@ -201,7 +222,11 @@ async function refreshActiveStatus(
 
   const activeContext = runtimeState.activeContext
   const activeSessionId = runtimeState.activeSessionId
-  const config = await loadConfig(activeContext)
+  const config = await loadConfigForStatus(loadConfig, activeContext)
+  if (config === undefined) {
+    clearActiveStatus(runtimeState, activeContext)
+    return DEFAULT_REFRESH_INTERVAL_MS
+  }
   const currentState = stateForSession(
     sessionStates,
     activeContext,
@@ -221,6 +246,7 @@ function scheduleNextRefresh(
   pi: ExtensionApi,
   sessionStates: Map<string, DeveloperCostState>,
   runtimeState: RuntimeState,
+  loadConfig: ConfigLoader,
   waitMs = DEFAULT_REFRESH_INTERVAL_MS,
 ): void {
   if (runtimeState.refreshTimer !== undefined) {
@@ -229,12 +255,46 @@ function scheduleNextRefresh(
 
   const timer = setTimeout(async () => {
     runtimeState.refreshTimer = undefined
-    const nextWaitMs = await refreshActiveStatus(pi, sessionStates, runtimeState)
-    scheduleNextRefresh(pi, sessionStates, runtimeState, nextWaitMs)
+    try {
+      const nextWaitMs = await refreshActiveStatus(pi, sessionStates, runtimeState, loadConfig)
+      scheduleNextRefresh(pi, sessionStates, runtimeState, loadConfig, nextWaitMs)
+    } catch (error) {
+      reportUnexpectedRefreshError(runtimeState, error)
+      scheduleNextRefresh(pi, sessionStates, runtimeState, loadConfig)
+    }
   }, waitMs)
 
   timer.unref?.()
   runtimeState.refreshTimer = timer
+}
+
+function reportUnexpectedRefreshError(runtimeState: RuntimeState, error: unknown): void {
+  const activeContext = runtimeState.activeContext
+  if (activeContext === undefined) return
+
+  activeContext.ui.notify(
+    `Developer cost status refresh error: ${configErrorMessage(error)}`,
+    "error",
+  )
+  clearActiveStatus(runtimeState, activeContext)
+}
+
+async function loadConfigForStatus(
+  loadConfig: ConfigLoader,
+  ctx: ExtensionContext,
+): Promise<DeveloperCostConfig | undefined> {
+  try {
+    return await loadConfig(ctx.cwd)
+  } catch (error) {
+    ctx.ui.notify(`Developer cost status config error: ${configErrorMessage(error)}`, "error")
+    return undefined
+  }
+}
+
+function configErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+
+  return String(error)
 }
 
 function rememberActiveSession(
@@ -259,38 +319,6 @@ function clearActiveStatus(runtimeState: RuntimeState, ctx: ExtensionContext): v
   runtimeState.activeSessionId = undefined
 }
 
-async function loadConfig(ctx: ExtensionContext): Promise<DeveloperCostConfig> {
-  return loadDeveloperCostConfigFromFiles(
-    pluginsLockfilePath(),
-    projectPluginOverridesPath(ctx.cwd),
-  )
-}
-
-export async function loadDeveloperCostConfigFromFiles(
-  pluginsLockfile: string,
-  projectPluginOverrides: string,
-): Promise<DeveloperCostConfig> {
-  const [runtimeConfig, projectOverrides] = await Promise.all([
-    readJsonFile<PluginRuntimeConfig>(pluginsLockfile),
-    readJsonFile<ProjectPluginOverrides>(projectPluginOverrides),
-  ])
-  const globalSettings = runtimeConfig?.settings?.[PLUGIN_NAME] ?? {}
-  const projectSettings = projectOverrides?.settings?.[PLUGIN_NAME] ?? {}
-  const mergedSettings = {
-    ...globalSettings,
-    ...projectSettings,
-  }
-
-  return parseDeveloperCostConfig(mergedSettings as DeveloperCostOptions)
-}
-
-function isTopLevelSession(ctx: ExtensionContext): boolean {
-  const sessionFile = ctx.sessionManager.getSessionFile()
-  if (sessionFile === undefined) return true
-
-  return !fs.existsSync(`${path.dirname(sessionFile)}.jsonl`)
-}
-
 function stateForSession(
   sessionStates: Map<string, DeveloperCostState>,
   ctx: ExtensionContext,
@@ -298,7 +326,7 @@ function stateForSession(
 ): DeveloperCostState {
   return (
     sessionStates.get(sessionId) ??
-    loadPersistedDeveloperCostState(ctx.sessionManager.getBranch())
+    loadPersistedDeveloperCostState(ctx.sessionManager.getEntries())
   )
 }
 
@@ -317,28 +345,4 @@ function statusText(state: DeveloperCostState, config: DeveloperCostConfig): str
   const text = formatDeveloperCost(displayedDeveloperCost(state))
 
   return `${text} (${config.label})`
-}
-
-async function readJsonFile<T>(filePath: string): Promise<T | undefined> {
-  try {
-    const raw = await fs.promises.readFile(filePath, "utf8")
-
-    return JSON.parse(raw) as T
-  } catch (error) {
-    if (isEnoent(error)) return undefined
-
-    return undefined
-  }
-}
-
-function isEnoent(error: unknown): boolean {
-  return error instanceof Error && "code" in error && error.code === "ENOENT"
-}
-
-function pluginsLockfilePath(): string {
-  return path.join(homedir(), ".omp", "plugins", "omp-plugins.lock.json")
-}
-
-function projectPluginOverridesPath(cwd: string): string {
-  return path.join(cwd, ".omp", "plugin-overrides.json")
 }

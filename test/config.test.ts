@@ -40,6 +40,23 @@ test("loads updated plugin settings from disk", async () => {
   }
 })
 
+test("throws when a config file is malformed", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "developer-cost-config-"))
+  const pluginsLockfile = path.join(directory, "omp-plugins.lock.json")
+  const projectOverrides = path.join(directory, "plugin-overrides.json")
+
+  try {
+    await writeFile(pluginsLockfile, "{")
+
+    await assert.rejects(
+      loadDeveloperCostConfigFromFiles(pluginsLockfile, projectOverrides),
+      /Unable to read developer cost config/,
+    )
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
 async function writePluginSettings(
   filePath: string,
   settings: Record<string, unknown>,
