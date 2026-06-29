@@ -40,6 +40,50 @@ test("loads updated plugin settings from disk", async () => {
   }
 })
 
+test("project overrides win over global plugin settings", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "developer-cost-config-"))
+  const pluginsLockfile = path.join(directory, "omp-plugins.lock.json")
+  const projectOverrides = path.join(directory, "plugin-overrides.json")
+
+  try {
+    await writePluginSettings(pluginsLockfile, {
+      monthlySalary: 6_500,
+      label: "global",
+    })
+    await writePluginSettings(projectOverrides, {
+      monthlySalary: 9_000,
+      label: "project",
+    })
+
+    const config = await loadDeveloperCostConfigFromFiles(pluginsLockfile, projectOverrides)
+
+    assert.equal(config.monthlySalary, 9_000)
+    assert.equal(config.label, "project")
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test("throws when project override config is malformed", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "developer-cost-config-"))
+  const pluginsLockfile = path.join(directory, "omp-plugins.lock.json")
+  const projectOverrides = path.join(directory, "plugin-overrides.json")
+
+  try {
+    await writePluginSettings(pluginsLockfile, {
+      monthlySalary: 6_500,
+    })
+    await writeFile(projectOverrides, "{")
+
+    await assert.rejects(
+      loadDeveloperCostConfigFromFiles(pluginsLockfile, projectOverrides),
+      /Unable to read developer cost config/,
+    )
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
 test("throws when a config file is malformed", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "developer-cost-config-"))
   const pluginsLockfile = path.join(directory, "omp-plugins.lock.json")
