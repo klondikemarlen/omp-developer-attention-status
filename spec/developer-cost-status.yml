@@ -1,5 +1,5 @@
 feature: developer-cost-status
-status: preview
+status: stable
 requirements:
   - id: prompt_driven_activity
     title: Prompt-driven activity

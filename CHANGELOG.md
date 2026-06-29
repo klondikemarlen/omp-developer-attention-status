@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-29
+
+### Changed
+
+- Mark the canonical developer-cost status contract as stable for v1.
+- Keep multi-session spread billing as a planned post-v1 enhancement.
+
+### Added
+
+- Add hook-boundary feature coverage for visible developer-cost accrual across prompts and idle time.
+- Guard package metadata so release artifacts keep shipping the canonical feature spec.
+
 ## [0.8.0] - 2026-06-26
 
 ### Changed

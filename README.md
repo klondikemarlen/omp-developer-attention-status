@@ -23,8 +23,8 @@ Canonical feature requirements live in [`spec/developer-cost-status.yml`](spec/d
 - **Session-scoped meter:** Billing is keyed to the current top-level session id. Resume the same
   session and the meter continues.
 - **Top-level only:** Subagent and artifact sessions do not get their own developer meter.
-- **0.8 scope:** Each top-level session is tracked independently. Multi-session spread billing is a
-  planned roadmap item, not part of the implemented 0.8 contract.
+- **1.0 scope:** Each top-level session is tracked independently. Multi-session spread billing is a
+  planned roadmap item, not part of the implemented 1.0 contract.
 
 ## Behavior
 
