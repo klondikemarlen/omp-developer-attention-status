@@ -27,8 +27,8 @@ Canonical feature requirements live in [`spec/developer-cost-status.yml`](spec/d
   detailed metrics are shown only by the status command.
 - **No inferred corrections:** The plugin does not classify corrections, nudges, or outcomes from
   prompt text; reliable correction telemetry needs richer OMP core signals.
-- **1.0 scope:** Each top-level session is tracked independently. Multi-session spread billing is a
-  planned roadmap item, not part of the implemented 1.0 contract.
+- **Spread billing:** Overlapping top-level sessions divide each elapsed cost interval equally;
+  per-session active milliseconds remain their full elapsed active time.
 
 ## Behavior
 
@@ -54,6 +54,9 @@ Billing and attention behavior:
 - accumulated cost is stored as a precise decimal string and formatted only for display
 - if you resume the same session id later, the plugin reloads its cost, active time, and prompt
   count
+- overlapping active top-level sessions divide each elapsed cost interval equally
+- the shared ledger coordinates overlap across plugin runners and retains settled session totals for
+  safe resume
 - a new session id starts a new meter
 
 ## Defaults
@@ -77,6 +80,7 @@ window.
 
 ```text
 activeCost = monthlySalary × 12 / (hoursPerWeek × weeksPerYear × 60 × 60 × 1000) × activeMilliseconds
+sharedSessionCost = activeCost / activeTopLevelSessionCount for each overlapping interval
 refreshCost = activeCost where activeMilliseconds = refreshIntervalSeconds × 1000
 windowRate = activeCost where activeMilliseconds = activeWindowMinutes × 60 × 1000
 ```

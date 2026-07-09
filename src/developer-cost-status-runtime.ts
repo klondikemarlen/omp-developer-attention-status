@@ -1,8 +1,6 @@
 import {
   parseDeveloperCostConfig,
-  recordDeveloperPrompt,
   refreshIntervalMs,
-  settleDeveloperCostState,
   type DeveloperCostConfig,
   type DeveloperCostState,
 } from "./billing/index.js"
@@ -18,6 +16,7 @@ import {
   DEVELOPER_COST_STATE_ENTRY,
   loadPersistedDeveloperCostState,
 } from "./session-state.js"
+import { SpreadBillingLedger } from "./spread-billing-ledger.js"
 import { isTopLevelSession } from "./session-classification.js"
 import type {
   ConfigLoader,
@@ -39,12 +38,14 @@ type RuntimeState = {
 export class DeveloperCostStatusRuntime {
   private readonly pi: ExtensionApi
   private readonly loadConfig: ConfigLoader
+  private readonly ledger: SpreadBillingLedger
   private readonly runtimeState: RuntimeState = {}
   private readonly sessionStates = new Map<string, DeveloperCostState>()
 
   constructor(pi: ExtensionApi, options: ExtensionOptions = {}) {
     this.pi = pi
     this.loadConfig = options.loadConfig ?? loadDeveloperCostConfig
+    this.ledger = new SpreadBillingLedger(options.ledgerPath)
   }
 
   register(): void {
@@ -86,11 +87,12 @@ export class DeveloperCostStatusRuntime {
 
     const config = await this.loadConfigForStatus(ctx)
     if (config === undefined) return
-
     const sessionId = ctx.sessionManager.getSessionId()
+
     const state = this.stateForSession(ctx, sessionId)
     const nowMs = Date.now()
-    const settledState = settleDeveloperCostState(state, nowMs, config)
+    const settledState = await this.ledger.settle(sessionId, state, nowMs, config)
+    this.sessionStates.set(sessionId, settledState)
     const message = (
       args.trim() === "summary"
         ? summaryText(settledState, config, sessionId, nowMs)
@@ -108,10 +110,11 @@ export class DeveloperCostStatusRuntime {
       this.clearActiveStatus(ctx)
       return
     }
-
     const sessionId = ctx.sessionManager.getSessionId()
+
+
     const state = loadPersistedDeveloperCostState(ctx.sessionManager.getEntries())
-    const settledState = settleDeveloperCostState(state, Date.now(), config)
+    const settledState = await this.ledger.settle(sessionId, state, Date.now(), config)
 
     this.sessionStates.set(sessionId, settledState)
     this.rememberActiveSession(ctx, sessionId, settledState)
@@ -131,18 +134,24 @@ export class DeveloperCostStatusRuntime {
       this.clearActiveStatus(ctx)
       return
     }
-
     const sessionId = ctx.sessionManager.getSessionId()
+
+
     const currentState = this.stateForSession(ctx, sessionId)
     const promptAtMs = Date.now()
-    const nextState = recordDeveloperPrompt(currentState, promptAtMs, config)
+    const nextState = await this.ledger.recordPrompt(
+      sessionId,
+      currentState,
+      promptAtMs,
+      config,
+    )
 
     this.sessionStates.set(sessionId, nextState)
     this.runtimeState.activeContext = ctx
     this.runtimeState.activeSessionId = sessionId
 
     this.pi.appendEntry(DEVELOPER_COST_STATE_ENTRY, nextState)
-    updateStatus(ctx, settleDeveloperCostState(nextState, promptAtMs, config), config)
+    updateStatus(ctx, nextState, config)
   }
 
   private async settleCurrentTurn(ctx: ExtensionContext): Promise<void> {
@@ -153,10 +162,11 @@ export class DeveloperCostStatusRuntime {
       this.clearActiveStatus(ctx)
       return
     }
-
     const sessionId = ctx.sessionManager.getSessionId()
+
+
     const currentState = this.stateForSession(ctx, sessionId)
-    const settledState = settleDeveloperCostState(currentState, Date.now(), config)
+    const settledState = await this.ledger.settle(sessionId, currentState, Date.now(), config)
 
     this.sessionStates.set(sessionId, settledState)
     this.pi.appendEntry(DEVELOPER_COST_STATE_ENTRY, settledState)
@@ -189,7 +199,12 @@ export class DeveloperCostStatusRuntime {
     }
 
     const currentState = this.stateForSession(activeContext, activeSessionId)
-    const settledState = settleDeveloperCostState(currentState, Date.now(), config)
+    const settledState = await this.ledger.settle(
+      activeSessionId,
+      currentState,
+      Date.now(),
+      config,
+    )
 
     this.sessionStates.set(activeSessionId, settledState)
     this.pi.appendEntry(DEVELOPER_COST_STATE_ENTRY, settledState)

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add persisted developer attention metrics and `/developer-cost-status summary`.
+- Divide overlapping top-level session cost across the active sessions.
 
 ## [1.0.1] - 2026-07-03
 

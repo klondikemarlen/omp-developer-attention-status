@@ -1,9 +1,14 @@
 import assert from "node:assert/strict"
+import { randomUUID } from "node:crypto"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { mock, test } from "node:test"
 
 import { parseDeveloperCostConfig } from "../src/billing/parse-developer-cost-config.js"
+import { emptyDeveloperCostState } from "../src/billing/empty-developer-cost-state.js"
+import { parseDeveloperCostState } from "../src/billing/parse-developer-cost-state.js"
+import type { DeveloperCostState } from "../src/billing/index.js"
+import { SpreadBillingLedger } from "../src/spread-billing-ledger.js"
 import type { ConfigLoader } from "../src/extension-types.js"
 import developerCostStatusExtension, { type ExtensionApi } from "../src/index.js"
 import { DEVELOPER_COST_STATE_ENTRY } from "../src/session-state.js"
@@ -386,7 +391,237 @@ test("clears status when session switch config load fails", async () => {
   ])
 })
 
+test("bills one top-level session at the full $120 hourly rate", async () => {
+  const start = Date.UTC(2026, 0, 1, 12, 0, 0)
+  let nowMs = start
+  const runtime = createExtensionRuntime({ loadConfig: loadFullRateConfig })
+  const ctx = createContext(runtime, { parentSession: undefined, sessionId: "single" })
+  mock.method(Date, "now", () => nowMs)
+
+  try {
+    await runtime.handlers.get("before_agent_start")?.({ prompt: "hello" } as never, ctx as never)
+    nowMs += 60_000
+    await runtime.handlers.get("turn_end")?.({ type: "turn_end" } as never, ctx as never)
+
+    assert.equal(latestState(runtime).totalCost, "2")
+    assert.equal(latestState(runtime).activeMilliseconds, 60_000)
+  } finally {
+    mock.restoreAll()
+  }
+})
+
+test("splits simultaneous session billing across runtimes sharing one ledger", async () => {
+  const start = Date.UTC(2026, 0, 1, 12, 0, 0)
+  let nowMs = start
+  const ledgerPath = temporaryLedgerPath()
+  const first = createExtensionRuntime({ ledgerPath, loadConfig: loadFullRateConfig })
+  const second = createExtensionRuntime({ ledgerPath, loadConfig: loadFullRateConfig })
+  const firstCtx = createContext(first, { parentSession: undefined, sessionId: "first" })
+  const secondCtx = createContext(second, { parentSession: undefined, sessionId: "second" })
+  mock.method(Date, "now", () => nowMs)
+
+  try {
+    await first.handlers.get("before_agent_start")?.({ prompt: "first" } as never, firstCtx as never)
+    await second.handlers.get("before_agent_start")?.({ prompt: "second" } as never, secondCtx as never)
+    nowMs += 60_000
+    await first.handlers.get("turn_end")?.({ type: "turn_end" } as never, firstCtx as never)
+    await second.handlers.get("turn_end")?.({ type: "turn_end" } as never, secondCtx as never)
+
+    assert.equal(latestState(first).totalCost, "1")
+    assert.equal(latestState(second).totalCost, "1")
+    assert.equal(latestState(first).activeMilliseconds, 60_000)
+    assert.equal(latestState(second).activeMilliseconds, 60_000)
+  } finally {
+    mock.restoreAll()
+  }
+})
+
+test("splits only the staggered overlap across runtimes sharing one ledger", async () => {
+  const start = Date.UTC(2026, 0, 1, 12, 0, 0)
+  let nowMs = start
+  const ledgerPath = temporaryLedgerPath()
+  const first = createExtensionRuntime({ ledgerPath, loadConfig: loadFullRateConfig })
+  const second = createExtensionRuntime({ ledgerPath, loadConfig: loadFullRateConfig })
+  const firstCtx = createContext(first, { parentSession: undefined, sessionId: "first" })
+  const secondCtx = createContext(second, { parentSession: undefined, sessionId: "second" })
+  mock.method(Date, "now", () => nowMs)
+
+  try {
+    await first.handlers.get("before_agent_start")?.({ prompt: "first" } as never, firstCtx as never)
+    nowMs += 60_000
+    await second.handlers.get("before_agent_start")?.({ prompt: "second" } as never, secondCtx as never)
+    nowMs += 60_000
+    await first.handlers.get("turn_end")?.({ type: "turn_end" } as never, firstCtx as never)
+    await second.handlers.get("turn_end")?.({ type: "turn_end" } as never, secondCtx as never)
+
+    assert.equal(latestState(first).totalCost, "3")
+    assert.equal(latestState(second).totalCost, "1")
+    assert.equal(latestState(first).activeMilliseconds, 120_000)
+    assert.equal(latestState(second).activeMilliseconds, 60_000)
+  } finally {
+    mock.restoreAll()
+  }
+})
+
+test("expires a session after its five-minute active window", async () => {
+  const start = Date.UTC(2026, 0, 1, 12, 0, 0)
+  let nowMs = start
+  const runtime = createExtensionRuntime({ loadConfig: loadFullRateConfig })
+  const ctx = createContext(runtime, { parentSession: undefined, sessionId: "expired" })
+  mock.method(Date, "now", () => nowMs)
+
+  try {
+    await runtime.handlers.get("before_agent_start")?.({ prompt: "hello" } as never, ctx as never)
+    nowMs += 6 * 60_000
+    await runtime.handlers.get("turn_end")?.({ type: "turn_end" } as never, ctx as never)
+
+    assert.deepEqual(latestState(runtime), {
+      totalCost: "10",
+      promptCount: 1,
+      activeMilliseconds: 5 * 60_000,
+      activeStartAtMs: undefined,
+      activeUntilMs: undefined,
+      lastSettledAtMs: undefined,
+      lastPromptAtMs: start,
+    })
+  } finally {
+    mock.restoreAll()
+  }
+})
+
+test("resumes stale persisted session state from its settled shared ledger entry", async () => {
+  const start = Date.UTC(2026, 0, 1, 12, 0, 0)
+  let nowMs = start
+  const ledgerPath = temporaryLedgerPath()
+  const first = createExtensionRuntime({ ledgerPath, loadConfig: loadFullRateConfig })
+  const second = createExtensionRuntime({ ledgerPath, loadConfig: loadFullRateConfig })
+  const firstCtx = createContext(first, { parentSession: undefined, sessionId: "first" })
+  const secondCtx = createContext(second, { parentSession: undefined, sessionId: "second" })
+  mock.method(Date, "now", () => nowMs)
+
+  try {
+    await first.handlers.get("before_agent_start")?.({ prompt: "first" } as never, firstCtx as never)
+    await second.handlers.get("before_agent_start")?.({ prompt: "second" } as never, secondCtx as never)
+    nowMs += 60_000
+    await second.handlers.get("turn_end")?.({ type: "turn_end" } as never, secondCtx as never)
+
+    const resumed = createExtensionRuntime({ ledgerPath, loadConfig: loadFullRateConfig })
+    const resumedCtx = createContext(resumed, {
+      parentSession: undefined,
+      sessionId: "first",
+      allEntries: first.entries,
+    })
+    await resumed.handlers.get("session_start")?.({ reason: "resume" } as never, resumedCtx as never)
+
+    assert.equal(latestState(first).totalCost, "0")
+    assert.equal(resumed.statusText, "dim:$1.00 (dev)")
+  } finally {
+    mock.restoreAll()
+  }
+})
+
+test("does not bill a child runtime against a shared ledger", async () => {
+  const start = Date.UTC(2026, 0, 1, 12, 0, 0)
+  let nowMs = start
+  const ledgerPath = temporaryLedgerPath()
+  const parent = createExtensionRuntime({ ledgerPath, loadConfig: loadFullRateConfig })
+  const child = createExtensionRuntime({ ledgerPath, loadConfig: loadFullRateConfig })
+  const parentCtx = createContext(parent, { parentSession: undefined, sessionId: "parent" })
+  const childCtx = createContext(child, {
+    parentSession: "/tmp/parent.jsonl",
+    sessionId: "child",
+  })
+  mock.method(Date, "now", () => nowMs)
+
+  try {
+    await parent.handlers.get("before_agent_start")?.({ prompt: "parent" } as never, parentCtx as never)
+    await child.handlers.get("before_agent_start")?.({ prompt: "child" } as never, childCtx as never)
+    nowMs += 60_000
+    await parent.handlers.get("turn_end")?.({ type: "turn_end" } as never, parentCtx as never)
+
+    assert.equal(latestState(parent).totalCost, "2")
+    assert.equal(child.entries.length, 0)
+    assert.equal(child.statusText, undefined)
+  } finally {
+    mock.restoreAll()
+  }
+})
+
+
+test("starts a late prompt at the shared ledger settlement frontier", async () => {
+  const ledger = new SpreadBillingLedger(temporaryLedgerPath())
+  const config = await loadFullRateConfig()
+  const first = await ledger.recordPrompt("first", emptyDeveloperCostState(), 0, config)
+
+  await ledger.settle("first", first, 101, config)
+  const late = await ledger.recordPrompt("late", emptyDeveloperCostState(), 100, config)
+  const settledLate = await ledger.settle("late", late, 102, config)
+
+  assert.equal(late.activeStartAtMs, 101)
+  assert.equal(late.lastSettledAtMs, 101)
+  assert.equal(late.lastPromptAtMs, 100)
+  assert.equal(late.activeMilliseconds, 0)
+  assert.equal(settledLate.activeMilliseconds, 1)
+  assert.equal(settledLate.totalCost, "0.00001666666666666667")
+})
+
+test("does not bill restored active state before the ledger settlement frontier", async () => {
+  const ledger = new SpreadBillingLedger(temporaryLedgerPath())
+  const config = await loadFullRateConfig()
+  const first = await ledger.recordPrompt("first", emptyDeveloperCostState(), 0, config)
+  const settledFirst = await ledger.settle("first", first, 60_000, config)
+  const restored = parseDeveloperCostState({
+    totalCost: "0",
+    promptCount: 1,
+    activeMilliseconds: 0,
+    activeStartAtMs: 0,
+    activeUntilMs: 5 * 60_000,
+    lastSettledAtMs: 0,
+    lastPromptAtMs: 0,
+  })
+  assert.ok(restored)
+
+  const settledRestored = await ledger.settle("restored", restored, 60_000, config)
+
+  assert.equal(settledFirst.totalCost, "2")
+  assert.equal(settledRestored.totalCost, "0")
+  assert.equal(settledRestored.activeMilliseconds, 0)
+  assert.equal(Number(settledFirst.totalCost) + Number(settledRestored.totalCost), 2)
+})
+
+test("preserves concurrent sessions in the shared ledger", async () => {
+  const ledgerPath = temporaryLedgerPath()
+  const firstLedger = new SpreadBillingLedger(ledgerPath)
+  const secondLedger = new SpreadBillingLedger(ledgerPath)
+  const config = await loadFullRateConfig()
+  const [firstPrompt, secondPrompt] = await Promise.all([
+    firstLedger.recordPrompt("first", emptyDeveloperCostState(), 0, config),
+    secondLedger.recordPrompt("second", emptyDeveloperCostState(), 0, config),
+  ])
+
+  const [first, second] = await Promise.all([
+    firstLedger.settle("first", firstPrompt, 60_000, config),
+    secondLedger.settle("second", secondPrompt, 60_000, config),
+  ])
+
+  assert.equal(first.totalCost, "1")
+  assert.equal(second.totalCost, "1")
+})
+
+test("keeps delayed same-session prompt timestamps monotonic in the shared ledger", async () => {
+  const ledgerPath = temporaryLedgerPath()
+  const firstLedger = new SpreadBillingLedger(ledgerPath)
+  const delayedLedger = new SpreadBillingLedger(ledgerPath)
+  const config = await loadFullRateConfig()
+
+  await firstLedger.recordPrompt("session", emptyDeveloperCostState(), 100, config)
+  const delayed = await delayedLedger.recordPrompt("session", emptyDeveloperCostState(), 0, config)
+
+  assert.equal(delayed.lastPromptAtMs, 100)
+})
+
 type RuntimeOptions = {
+  ledgerPath?: string
   loadConfig?: ConfigLoader
 }
 
@@ -410,10 +645,34 @@ function createExtensionRuntime(options: RuntimeOptions = {}): Runtime {
   }
 
   developerCostStatusExtension(pi, {
+    ledgerPath: options.ledgerPath ?? temporaryLedgerPath(),
     loadConfig: options.loadConfig ?? (async () => parseDeveloperCostConfig()),
   })
 
   return runtime
+}
+
+function temporaryLedgerPath(): string {
+  return path.join(tmpdir(), `developer-cost-extension-test-${randomUUID()}.json`)
+}
+
+async function loadFullRateConfig() {
+  return parseDeveloperCostConfig({
+    monthlySalary: 20_800,
+    hoursPerWeek: 40,
+    weeksPerYear: 52,
+    activeWindowMinutes: 5,
+    refreshIntervalSeconds: 60,
+  })
+}
+
+function latestState(runtime: Runtime): DeveloperCostState {
+  const entry = runtime.entries.at(-1)
+  assert.ok(entry)
+  assert.equal(entry.customType, DEVELOPER_COST_STATE_ENTRY)
+  const state = parseDeveloperCostState(entry.data)
+  assert.ok(state)
+  return state
 }
 
 function createContext(
