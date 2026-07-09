@@ -19,6 +19,7 @@ export function recordDeveloperPrompt(
     nextState.activeUntilMs = Math.max(nextState.activeUntilMs, promptAtMs + windowMs)
   }
 
+  nextState.promptCount += 1
   nextState.lastPromptAtMs = promptAtMs
 
   return nextState

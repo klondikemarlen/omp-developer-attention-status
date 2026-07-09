@@ -99,6 +99,24 @@ test("stores cost as a decimal string", () => {
   assert.equal(refreshed.totalCost, "0.15625")
 })
 
+test("accumulates attention metrics once across prompts and expiration", () => {
+  const start = Date.UTC(2026, 0, 1, 12, 0, 0)
+  const first = recordDeveloperPrompt(emptyDeveloperCostState(), start, config)
+  const twoMinutesLater = settleDeveloperCostState(first, start + 2 * 60 * 1000, config)
+  const second = recordDeveloperPrompt(twoMinutesLater, start + 4 * 60 * 1000, config)
+  const expired = settleDeveloperCostState(second, start + 9 * 60 * 1000, config)
+  const repeatedlySettled = settleDeveloperCostState(expired, start + 12 * 60 * 1000, config)
+
+  assert.equal(first.promptCount, 1)
+  assert.equal(twoMinutesLater.activeMilliseconds, 2 * 60 * 1000)
+  assert.equal(second.promptCount, 2)
+  assert.equal(second.activeMilliseconds, 4 * 60 * 1000)
+  assert.equal(expired.totalCost, "5.625")
+  assert.equal(expired.activeMilliseconds, 9 * 60 * 1000)
+  assert.equal(repeatedlySettled.totalCost, "5.625")
+  assert.equal(repeatedlySettled.activeMilliseconds, 9 * 60 * 1000)
+})
+
 test("accepts persisted numeric cost for old session entries", () => {
   const state = parseDeveloperCostState({
     totalCost: 3.125,

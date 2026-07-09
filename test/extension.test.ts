@@ -18,15 +18,34 @@ type Runtime = {
   statusText?: string
 }
 
-test("records prompts and status for top-level sessions", async () => {
+test("persists one attention count for a top-level prompt", async () => {
+  const start = Date.UTC(2026, 0, 1, 12, 0, 0)
   const runtime = createExtensionRuntime()
   const ctx = createContext(runtime, { parentSession: undefined })
+  mock.method(Date, "now", () => start)
 
-  await runtime.handlers.get("before_agent_start")?.({ prompt: "hello" } as never, ctx as never)
+  try {
+    await runtime.handlers.get("before_agent_start")?.({ prompt: "hello" } as never, ctx as never)
 
-  assert.equal(runtime.entries.length, 1)
-  assert.equal(runtime.entries[0]?.customType, DEVELOPER_COST_STATE_ENTRY)
-  assert.equal(runtime.statusText, "dim:$0.00 (dev)")
+    assert.deepEqual(runtime.entries, [
+      {
+        type: "custom",
+        customType: DEVELOPER_COST_STATE_ENTRY,
+        data: {
+          totalCost: "0",
+          promptCount: 1,
+          activeMilliseconds: 0,
+          activeStartAtMs: start,
+          activeUntilMs: start + 5 * 60 * 1000,
+          lastSettledAtMs: start,
+          lastPromptAtMs: start,
+        },
+      },
+    ])
+    assert.equal(runtime.statusText, "dim:$0.00 (dev)")
+  } finally {
+    mock.restoreAll()
+  }
 })
 
 test("feature scenario tracks visible developer cost across prompts and idle time", async () => {
@@ -74,6 +93,72 @@ test("feature scenario tracks visible developer cost across prompts and idle tim
   } finally {
     mock.restoreAll()
   }
+})
+
+test("reports a detailed attention summary without changing the compact status", async () => {
+  const start = Date.UTC(2026, 0, 1, 12, 0, 0)
+  let nowMs = start
+  const runtime = createExtensionRuntime({
+    loadConfig: async () =>
+      parseDeveloperCostConfig({
+        monthlySalary: 100_000 / 12,
+        hoursPerWeek: 35,
+        weeksPerYear: 52,
+        activeWindowMinutes: 5,
+        refreshIntervalSeconds: 60,
+      }),
+  })
+  const ctx = createContext(runtime, { parentSession: undefined })
+  mock.method(Date, "now", () => nowMs)
+
+  try {
+    await runtime.handlers.get("before_agent_start")?.({ prompt: "first prompt" } as never, ctx as never)
+
+    nowMs = start + 2 * 60 * 1000
+    await runtime.commands.get("developer-cost-status")?.handler("summary", ctx as never)
+
+    assert.deepEqual(runtime.notifications, [
+      {
+        message:
+          "Developer cost summary\nSession: session-1\nCost: $1.83 (dev)\nActive time: 2m 0s\nPrompt count: 1\nLast prompt: 2m 0s ago (2026-01-01T12:00:00.000Z)",
+        type: "info",
+      },
+    ])
+    assert.equal(runtime.statusText, "dim:$0.00 (dev)")
+  } finally {
+    mock.restoreAll()
+  }
+})
+
+test("reports an unavailable last prompt for an unrenderable persisted timestamp", async () => {
+  const runtime = createExtensionRuntime()
+  const ctx = createContext(runtime, {
+    parentSession: undefined,
+    allEntries: [
+      {
+        type: "custom",
+        customType: DEVELOPER_COST_STATE_ENTRY,
+        data: {
+          totalCost: "12.34",
+          promptCount: 1,
+          activeMilliseconds: 60_000,
+          lastSettledAtMs: Date.UTC(2026, 0, 1, 12, 0, 0),
+          lastPromptAtMs: 9e15,
+        },
+      },
+    ],
+  })
+
+  await assert.doesNotReject(
+    runtime.commands.get("developer-cost-status")!.handler("summary", ctx as never),
+  )
+  assert.deepEqual(runtime.notifications, [
+    {
+      message:
+        "Developer cost summary\nSession: session-1\nCost: $12.34 (dev)\nActive time: 1m 0s\nPrompt count: 1\nLast prompt: unavailable",
+      type: "info",
+    },
+  ])
 })
 
 test("passes context cwd to the config loader", async () => {

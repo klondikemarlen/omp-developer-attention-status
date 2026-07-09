@@ -1,14 +1,14 @@
 # omp-developer-cost-status
 
-OMP plugin that adds a developer-time cost meter to the footer status line.
+OMP plugin that adds a developer attention and time-cost meter to the footer status line.
 
 ## Intent
 
-**WHY this plugin exists:** OMP shows model and tool activity, but it does not track what the
-developer's own active time costs while they drive a session.
+**WHY this plugin exists:** OMP shows model and tool activity, but it does not track the
+developer attention consumed while they drive a session.
 
-**WHAT this plugin produces:** A footer status segment like `$0.16 (dev)` that stays active after
-each prompt and refreshes on a configurable cadence while the session is active.
+**WHAT this plugin produces:** A compact footer status segment like `$0.16 (dev)` that stays
+active after each prompt, plus an on-demand summary of developer cost, active time, and prompts.
 
 Canonical feature requirements live in [`spec/developer-cost-status.yml`](spec/developer-cost-status.yml).
 
@@ -23,6 +23,10 @@ Canonical feature requirements live in [`spec/developer-cost-status.yml`](spec/d
 - **Session-scoped meter:** Billing is keyed to the current top-level session id. Resume the same
   session and the meter continues.
 - **Top-level only:** Subagent and artifact sessions do not get their own developer meter.
+- **Attention metrics:** Prompt count and active milliseconds are persisted per top-level session;
+  detailed metrics are shown only by the status command.
+- **No inferred corrections:** The plugin does not classify corrections, nudges, or outcomes from
+  prompt text; reliable correction telemetry needs richer OMP core signals.
 - **1.0 scope:** Each top-level session is tracked independently. Multi-session spread billing is a
   planned roadmap item, not part of the implemented 1.0 contract.
 
@@ -42,13 +46,14 @@ Display style:
 - dim hook-status styling
 - refreshes every `refreshIntervalSeconds` while the session is active
 
-Billing behavior:
+Billing and attention behavior:
 
-- each prompt keeps billing alive for `activeWindowMinutes`
-- cost accrues continuously during active time and stops when the active window expires
+- each top-level prompt increments the session prompt count and keeps billing alive for
+  `activeWindowMinutes`
+- cost and active milliseconds accrue together until the active window expires
 - accumulated cost is stored as a precise decimal string and formatted only for display
-- if you resume the same session id later, the plugin reloads the last persisted state and keeps
-  adding to it
+- if you resume the same session id later, the plugin reloads its cost, active time, and prompt
+  count
 - a new session id starts a new meter
 
 ## Defaults
@@ -165,9 +170,12 @@ restart after changing plugin code or install state.
 
 ```text
 /developer-cost-status
+/developer-cost-status summary
 ```
 
-It shows the current meter total for the active top-level session.
+The default command shows the compact current meter total for the active top-level session.
+`summary` reports its session id, developer cost, active time, prompt count, and the last prompt's
+age and timestamp. It does not infer corrections, nudges, or outcomes.
 
 ## Development
 
