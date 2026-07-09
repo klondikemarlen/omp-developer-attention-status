@@ -10,6 +10,7 @@ import { loadDeveloperCostConfig } from "./load-developer-cost-config.js"
 import {
   clearStatus,
   errorMessage,
+  summaryText,
   statusText,
   updateStatus,
 } from "./status-presenter.js"
@@ -50,9 +51,9 @@ export class DeveloperCostStatusRuntime {
     this.scheduleNextRefresh()
 
     this.pi.registerCommand("developer-cost-status", {
-      description: "Show the developer cost meter for the current session",
-      handler: async (_args, ctx) => {
-        await this.showCurrentStatus(ctx)
+      description: "Show developer cost or attention summary for the current session",
+      handler: async (args, ctx) => {
+        await this.showCurrentStatus(args, ctx)
       },
     })
 
@@ -77,7 +78,7 @@ export class DeveloperCostStatusRuntime {
     })
   }
 
-  private async showCurrentStatus(ctx: ExtensionContext): Promise<void> {
+  private async showCurrentStatus(args: string, ctx: ExtensionContext): Promise<void> {
     if (!isTopLevelSession(ctx.sessionManager)) {
       ctx.ui.notify("Developer cost status is only tracked for top-level sessions.", "info")
       return
@@ -88,9 +89,15 @@ export class DeveloperCostStatusRuntime {
 
     const sessionId = ctx.sessionManager.getSessionId()
     const state = this.stateForSession(ctx, sessionId)
-    const settledState = settleDeveloperCostState(state, Date.now(), config)
+    const nowMs = Date.now()
+    const settledState = settleDeveloperCostState(state, nowMs, config)
+    const message = (
+      args.trim() === "summary"
+        ? summaryText(settledState, config, sessionId, nowMs)
+        : statusText(settledState, config)
+    )
 
-    ctx.ui.notify(statusText(settledState, config), "info")
+    ctx.ui.notify(message, "info")
   }
 
   private async activateSession(ctx: ExtensionContext): Promise<void> {

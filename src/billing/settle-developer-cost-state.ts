@@ -22,6 +22,7 @@ export function settleDeveloperCostState(
   if (elapsedMs > 0) {
     const elapsedCost = costForActiveMs(config, elapsedMs)
     nextState.totalCost = Big(nextState.totalCost).plus(elapsedCost).toString()
+    nextState.activeMilliseconds += elapsedMs
     nextState.lastSettledAtMs = settleUntilMs
   }
 
