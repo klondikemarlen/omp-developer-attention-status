@@ -74,11 +74,13 @@
   },
   "dependencies": {
     "@oh-my-pi/pi-coding-agent": "^16.1.16",
-    "big.js": "^7.0.1"
+    "big.js": "^7.0.1",
+    "proper-lockfile": "^4.1.2"
   },
   "devDependencies": {
     "@types/big.js": "^7.0.0",
     "@types/node": "^24.0.0",
+    "@types/proper-lockfile": "^4.1.4",
     "tsx": "^4.20.6",
     "typescript": "^5.8.2"
   },

@@ -69,4 +69,5 @@ export type ConfigLoader = (cwd: string) => Promise<DeveloperCostConfig>
 
 export type ExtensionOptions = {
   loadConfig?: ConfigLoader
+  ledgerPath?: string
 }

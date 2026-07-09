@@ -6,6 +6,7 @@ export type {
   DeveloperCostOptions,
 } from "./developer-cost-config.js"
 export type { DeveloperCostState } from "./developer-cost-state.js"
+export type { SpreadDeveloperCostSession } from "./settle-spread-developer-cost-states.js"
 export { displayedDeveloperCost } from "./displayed-developer-cost.js"
 export { emptyDeveloperCostState } from "./empty-developer-cost-state.js"
 export { formatDeveloperCost } from "./format-developer-cost.js"
@@ -14,4 +15,5 @@ export { parseDeveloperCostState } from "./parse-developer-cost-state.js"
 export { recordDeveloperPrompt } from "./record-developer-prompt.js"
 export { refreshIntervalMs } from "./refresh-interval-ms.js"
 export { settleDeveloperCostState } from "./settle-developer-cost-state.js"
+export { settleSpreadDeveloperCostStates } from "./settle-spread-developer-cost-states.js"
 export { windowRate } from "./window-rate.js"

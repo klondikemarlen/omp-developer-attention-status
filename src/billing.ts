@@ -10,10 +10,12 @@ export {
   recordDeveloperPrompt,
   refreshIntervalMs,
   settleDeveloperCostState,
+  settleSpreadDeveloperCostStates,
   windowRate,
 } from "./billing/index.js"
 export type {
   DeveloperCostConfig,
   DeveloperCostOptions,
   DeveloperCostState,
+  SpreadDeveloperCostSession,
 } from "./billing/index.js"

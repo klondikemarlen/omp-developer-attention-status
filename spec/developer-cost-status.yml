@@ -37,11 +37,10 @@ requirements:
     title: Persisted developer attention metrics
     requirement: Persist prompt count and active milliseconds for each top-level session, and expose developer cost, active time, prompt count, last prompt age/time, and session id through the summary command.
     rationale: Cost alone does not show how much human steering a hands-off session consumed.
-roadmap:
   - id: spread_billing
     title: Multi-session spread billing
-    status: planned
-    requirement: If the user is active in multiple top-level sessions during the same time span, divide developer cost across those sessions instead of double-counting it.
+    requirement: Divide each elapsed active-cost interval equally across every simultaneously active top-level session, including sessions in independent plugin runners.
+    persistence: Keep shared settled session state so resumed sessions cannot double-count or lose prior overlap intervals.
     rationale: One developer cannot spend the same real-world time at full cost in multiple sessions simultaneously.
 non_requirements:
   - id: no_model_cost_replacement
