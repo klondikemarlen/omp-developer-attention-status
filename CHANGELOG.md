@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-07-10
+
 ### Added
 
 - Add persisted developer attention metrics and `/developer-cost-status summary`.
@@ -15,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Rename the package and repository to `omp-developer-attention-status`.
+
+### Fixed
+
+- Install lock runtime dependencies when OMP resolves the plugin remotely.
 
 ## [1.0.1] - 2026-07-03
 
