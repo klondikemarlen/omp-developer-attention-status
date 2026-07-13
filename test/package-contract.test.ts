@@ -5,9 +5,8 @@ import test from "node:test"
 type PackageJson = {
   name?: string
   files?: string[]
-  scripts?: {
-    build?: string
-  }
+  dependencies?: Record<string, string>
+  scripts?: Record<string, string>
   omp?: {
     extensions?: string[]
   }
@@ -23,13 +22,26 @@ test("package ships the OMP entrypoint and canonical spec", async () => {
   assert.deepEqual(packageJson.omp?.extensions, ["./dist/index.js"])
   assert.ok(packageJson.files?.includes("dist"), "expected dist/ in package files")
   assert.ok(packageJson.files?.includes("THIRD_PARTY_NOTICES.txt"), "expected third-party notices in package files")
+  assert.equal(packageJson.dependencies?.["big.js"], undefined)
+  assert.equal(packageJson.dependencies?.["proper-lockfile"], undefined)
+  assert.equal(packageJson.scripts?.build, "npm run build:types && npm run build:vendor && npm run format:dist")
   assert.match(
-    packageJson.scripts?.build ?? "",
+    packageJson.scripts?.["build:types"] ?? "",
     /\brm -rf dist\s+&&\s+tsc --noEmit -p tsconfig\.json\s+&&\s+tsc -p tsconfig\.build\.json\b/,
     "expected build script to emit readable ESM modules at dist/",
   )
 
   const canonicalSpecUrl = new URL("../spec/developer-attention-status.yml", import.meta.url)
+
+  const lockfileBundleUrl = new URL("../dist/vendor/proper-lockfile.js", import.meta.url)
+  const lockfileBundle = await readFile(lockfileBundleUrl, "utf8")
+  assert.match(lockfileBundle, /node_modules\/proper-lockfile/)
+  assert.doesNotMatch(lockfileBundle, /require\(["'](proper-lockfile|graceful-fs|retry|signal-exit)["']\)/)
+
+  const bigBundleUrl = new URL("../dist/vendor/big.js", import.meta.url)
+  const bigBundle = await readFile(bigBundleUrl, "utf8")
+  assert.match(bigBundle, /node_modules\/big\.js/)
+  assert.doesNotMatch(bigBundle, /from ["']big\.js["']/)
   const canonicalSpec = await readFile(canonicalSpecUrl, "utf8")
   assert.match(canonicalSpec, /^feature: developer-attention-status$/m)
 })

@@ -1,4 +1,4 @@
-import Big from "big.js"
+import Big from "../../vendor/big.js"
 
 import type { DeveloperCostConfig } from "../config/model.js"
 import { MONTHS_PER_YEAR, MS_PER_HOUR } from "./time-constants.js"

@@ -13,7 +13,9 @@ async function filesIn(directory) {
     const entryPath = path.join(directory, entry.name)
 
     if (entry.isDirectory()) return filesIn(entryPath)
-    return entry.name.endsWith(".js") ? [entryPath] : []
+
+    const isJavaScript = entry.name.endsWith(".js") || entry.name.endsWith(".cjs")
+    return isJavaScript ? [entryPath] : []
   }))
 
   return nestedFiles.flat()

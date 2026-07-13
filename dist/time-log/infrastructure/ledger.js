@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
-import { lock } from "proper-lockfile";
+import { lock } from "../../vendor/proper-lockfile.js";
 import { exportTimeEntries } from "../domain/summary.js";
 import { parseTimeLogEntry } from "../domain/parse-entry.js";
 

@@ -1,4 +1,4 @@
-import Big from "big.js";
+import Big from "../vendor/big.js";
 import { isFiniteNumber } from "./is-finite-number.js";
 
 export function parseDecimalString(value) {

@@ -14,7 +14,10 @@
     "THIRD_PARTY_NOTICES.txt"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc --noEmit -p tsconfig.json && tsc -p tsconfig.build.json && prettier --write dist && node scripts/separate-generated-declarations.mjs",
+    "build": "npm run build:types && npm run build:vendor && npm run format:dist",
+    "build:types": "rm -rf dist && tsc --noEmit -p tsconfig.json && tsc -p tsconfig.build.json",
+    "build:vendor": "node scripts/bundle-runtime-dependencies.mjs",
+    "format:dist": "prettier --write dist && node scripts/separate-generated-declarations.mjs",
     "test": "node --import tsx --test test/*.test.ts"
   },
   "keywords": [
@@ -76,15 +79,16 @@
     }
   },
   "dependencies": {
-    "@oh-my-pi/pi-coding-agent": "^16.1.16",
-    "big.js": "^7.0.1",
-    "proper-lockfile": "^4.1.2"
+    "@oh-my-pi/pi-coding-agent": "^16.1.16"
   },
   "devDependencies": {
     "@types/big.js": "^7.0.0",
     "@types/node": "^24.0.0",
     "@types/proper-lockfile": "^4.1.4",
+    "big.js": "^7.0.1",
+    "esbuild": "^0.28.1",
     "prettier": "^3.9.5",
+    "proper-lockfile": "^4.1.2",
     "tsx": "^4.20.6",
     "typescript": "^5.8.2"
   },

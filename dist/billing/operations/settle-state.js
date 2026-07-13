@@ -1,4 +1,4 @@
-import Big from "big.js";
+import Big from "../../vendor/big.js";
 import { costForActiveMs } from "../calculation/cost-for-active-time.js";
 
 export function settleDeveloperCostState(state, nowMs, config) {

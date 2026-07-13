@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Format generated JavaScript and separate emitted class members for human-readable package inspection.
 - Consolidate one-use billing timing wrappers into their owning operations and runtime.
 
+### Fixed
+
+- Bundle the lockfile library and its transitive dependencies for OMP plugin installation.
+
 ## [1.0.3] - 2026-07-10
 
 ### Fixed
