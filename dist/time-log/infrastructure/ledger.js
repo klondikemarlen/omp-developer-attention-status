@@ -3,8 +3,8 @@ import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import { lock } from "../../vendor/proper-lockfile.js";
-import { exportTimeEntries } from "../domain/summary.js";
-import { parseTimeLogEntry } from "../domain/parse-entry.js";
+import { exportTimeEntries } from "../../time-log/domain/summary.js";
+import { parseTimeLogEntry } from "../../time-log/domain/parse-entry.js";
 
 export class TimeLogLedger {
   filePath;

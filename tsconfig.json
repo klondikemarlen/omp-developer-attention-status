@@ -3,10 +3,18 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
     "strict": true,
     "types": ["node"],
     "skipLibCheck": true,
     "noEmitOnError": true
+  },
+  "tsc-alias": {
+    "resolveFullPaths": true,
+    "resolveFullExtension": ".js"
   },
   "include": ["src/**/*.ts", "test/**/*.ts"]
 }

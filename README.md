@@ -235,6 +235,9 @@ npm run build
 npm pack --dry-run
 ```
 
+Source modules use `@/` imports rooted at `src/`. `tsc-alias` rewrites them to relative `.js`
+imports in `dist/`, so the published Node ESM plugin has no unresolved source alias.
+
 ## Development workflow
 
 For public user-facing changes, use the GitHub feature issue and pull request templates:

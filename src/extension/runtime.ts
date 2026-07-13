@@ -2,30 +2,30 @@ import {
   parseDeveloperCostConfig,
   type DeveloperCostConfig,
   type DeveloperCostState,
-} from "../billing/index.js"
-import { MS_PER_SECOND } from "../billing/calculation/time-constants.js"
-import { SpreadBillingLedger } from "../billing/infrastructure/spread-ledger.js"
-import { loadDeveloperCostConfig } from "../config/loader/load-developer-cost-config.js"
-import { AutomaticTimeLogRecorder } from "../time-log/recorder.js"
-import { errorMessage } from "../utils/error-message.js"
+} from "@/billing/index.js"
+import { MS_PER_SECOND } from "@/billing/calculation/time-constants.js"
+import { SpreadBillingLedger } from "@/billing/infrastructure/spread-ledger.js"
+import { loadDeveloperCostConfig } from "@/config/loader/load-developer-cost-config.js"
+import { AutomaticTimeLogRecorder } from "@/time-log/recorder.js"
+import { errorMessage } from "@/utils/error-message.js"
 
 import {
   DEVELOPER_COST_STATE_ENTRY,
   loadPersistedDeveloperCostState,
-} from "./session-state.js"
-import { isTopLevelSession } from "./session-classification.js"
+} from "@/extension/session-state.js"
+import { isTopLevelSession } from "@/extension/session-classification.js"
 import {
   clearStatus,
   summaryText,
   statusText,
   updateStatus,
-} from "./status-presenter.js"
+} from "@/extension/status-presenter.js"
 import type {
   ConfigLoader,
   ExtensionApi,
   ExtensionContext,
   ExtensionOptions,
-} from "./types.js"
+} from "@/extension/types.js"
 
 type RefreshTimer = NodeJS.Timeout
 

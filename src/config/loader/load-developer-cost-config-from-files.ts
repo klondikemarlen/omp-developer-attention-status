@@ -2,12 +2,12 @@ import {
   parseDeveloperCostConfig,
   type DeveloperCostConfig,
   type DeveloperCostOptions,
-} from "../../billing/index.js"
-import { LEGACY_PLUGIN_NAME, PLUGIN_NAME } from "../plugin-name.js"
-import type { PluginRuntimeConfig } from "../plugin-runtime-config.js"
-import type { ProjectPluginOverrides } from "../project-plugin-overrides.js"
-import { readDeveloperCostConfigFile } from "./read-developer-cost-config-file.js"
-import { settingsForPlugin } from "../settings-for-plugin.js"
+} from "@/billing/index.js"
+import { LEGACY_PLUGIN_NAME, PLUGIN_NAME } from "@/config/plugin-name.js"
+import type { PluginRuntimeConfig } from "@/config/plugin-runtime-config.js"
+import type { ProjectPluginOverrides } from "@/config/project-plugin-overrides.js"
+import { readDeveloperCostConfigFile } from "@/config/loader/read-developer-cost-config-file.js"
+import { settingsForPlugin } from "@/config/settings-for-plugin.js"
 
 export async function loadDeveloperCostConfigFromFiles(
   pluginsLockfile: string,

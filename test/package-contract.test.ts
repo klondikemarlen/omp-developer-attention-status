@@ -24,11 +24,18 @@ test("package ships the OMP entrypoint and canonical spec", async () => {
   assert.ok(packageJson.files?.includes("THIRD_PARTY_NOTICES.txt"), "expected third-party notices in package files")
   assert.equal(packageJson.dependencies?.["big.js"], undefined)
   assert.equal(packageJson.dependencies?.["proper-lockfile"], undefined)
-  assert.equal(packageJson.scripts?.build, "npm run build:types && npm run build:vendor && npm run format:dist")
-  assert.match(
-    packageJson.scripts?.["build:types"] ?? "",
-    /\brm -rf dist\s+&&\s+tsc --noEmit -p tsconfig\.json\s+&&\s+tsc -p tsconfig\.build\.json\b/,
-    "expected build script to emit readable ESM modules at dist/",
+  assert.equal(
+    packageJson.scripts?.build,
+    "npm run build:types && npm run build:source && npm run build:vendor && npm run format:dist",
+  )
+  assert.equal(
+    packageJson.scripts?.["build:source"],
+    "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
+  )
+
+  assert.equal(
+    packageJson.scripts?.["build:types"],
+    "rm -rf dist && tsc --noEmit -p tsconfig.json",
   )
 
   const canonicalSpecUrl = new URL("../spec/developer-attention-status.yml", import.meta.url)
@@ -44,6 +51,21 @@ test("package ships the OMP entrypoint and canonical spec", async () => {
   assert.doesNotMatch(bigBundle, /from ["']big\.js["']/)
   const canonicalSpec = await readFile(canonicalSpecUrl, "utf8")
   assert.match(canonicalSpec, /^feature: developer-attention-status$/m)
+})
+
+test("rewrites source aliases to runtime-safe relative imports", async () => {
+  const sourceEntryUrl = new URL("../src/index.ts", import.meta.url)
+  const sourceEntry = await readFile(sourceEntryUrl, "utf8")
+  assert.match(sourceEntry, /from "@\/extension\/runtime\.js"/)
+
+  const emittedEntryUrl = new URL("../dist/index.js", import.meta.url)
+  const emittedEntry = await readFile(emittedEntryUrl, "utf8")
+  assert.doesNotMatch(emittedEntry, /from "@\//)
+  assert.match(emittedEntry, /from "\.\/extension\/runtime\.js"/)
+
+  // Dynamic import exercises the generated runtime boundary; dist does not exist before the build.
+  const emittedModule = await import(emittedEntryUrl.href)
+  assert.equal(typeof emittedModule.default, "function")
 })
 
 test("ships generated modules with separated declarations", async () => {

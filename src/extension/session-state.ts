@@ -2,7 +2,7 @@ import {
   emptyDeveloperCostState,
   parseDeveloperCostState,
   type DeveloperCostState,
-} from "../billing/index.js"
+} from "@/billing/index.js"
 
 export const DEVELOPER_COST_STATE_ENTRY = "developer-cost-status.state"
 

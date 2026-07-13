@@ -1,7 +1,7 @@
 import { errorMessage } from "../utils/error-message.js";
-import { createAutomaticTimeLogEntry } from "./domain/create-automatic-entry.js";
-import { TimeLogLedger } from "./infrastructure/ledger.js";
-import { resolveGitRepository } from "./infrastructure/git-repository.js";
+import { createAutomaticTimeLogEntry } from "../time-log/domain/create-automatic-entry.js";
+import { TimeLogLedger } from "../time-log/infrastructure/ledger.js";
+import { resolveGitRepository } from "../time-log/infrastructure/git-repository.js";
 
 export class AutomaticTimeLogRecorder {
   lastErrorMessage;

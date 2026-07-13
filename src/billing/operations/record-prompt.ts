@@ -1,7 +1,7 @@
-import { MS_PER_MINUTE } from "../calculation/time-constants.js"
-import type { DeveloperCostConfig } from "../config/model.js"
-import type { DeveloperCostState } from "../state/model.js"
-import { settleDeveloperCostState } from "./settle-state.js"
+import { MS_PER_MINUTE } from "@/billing/calculation/time-constants.js"
+import type { DeveloperCostConfig } from "@/billing/config/model.js"
+import type { DeveloperCostState } from "@/billing/state/model.js"
+import { settleDeveloperCostState } from "@/billing/operations/settle-state.js"
 
 export function recordDeveloperPrompt(
   state: DeveloperCostState,

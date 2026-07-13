@@ -1,9 +1,9 @@
-import type { DeveloperCostState } from "../billing/index.js"
-import { errorMessage } from "../utils/error-message.js"
-import { createAutomaticTimeLogEntry } from "./domain/create-automatic-entry.js"
-import { TimeLogLedger } from "./infrastructure/ledger.js"
-import type { AutomaticTimeLogInput } from "./domain/model.js"
-import { resolveGitRepository, type GitRepository } from "./infrastructure/git-repository.js"
+import type { DeveloperCostState } from "@/billing/index.js"
+import { errorMessage } from "@/utils/error-message.js"
+import { createAutomaticTimeLogEntry } from "@/time-log/domain/create-automatic-entry.js"
+import { TimeLogLedger } from "@/time-log/infrastructure/ledger.js"
+import type { AutomaticTimeLogInput } from "@/time-log/domain/model.js"
+import { resolveGitRepository, type GitRepository } from "@/time-log/infrastructure/git-repository.js"
 
 type SessionRepository = {
   repository: Promise<GitRepository | undefined>

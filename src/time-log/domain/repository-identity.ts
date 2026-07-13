@@ -1,6 +1,6 @@
 import path from "node:path"
 
-import { sanitizedProjectLabel } from "./sanitized-project-label.js"
+import { sanitizedProjectLabel } from "@/time-log/domain/sanitized-project-label.js"
 
 type RepositoryIdentity = {
   project: string

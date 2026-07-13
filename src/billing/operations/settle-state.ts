@@ -1,8 +1,8 @@
-import Big from "../../vendor/big.js"
+import Big from "@/vendor/big.js"
 
-import { costForActiveMs } from "../calculation/cost-for-active-time.js"
-import type { DeveloperCostConfig } from "../config/model.js"
-import type { DeveloperCostState } from "../state/model.js"
+import { costForActiveMs } from "@/billing/calculation/cost-for-active-time.js"
+import type { DeveloperCostConfig } from "@/billing/config/model.js"
+import type { DeveloperCostState } from "@/billing/state/model.js"
 
 export function settleDeveloperCostState(
   state: DeveloperCostState,

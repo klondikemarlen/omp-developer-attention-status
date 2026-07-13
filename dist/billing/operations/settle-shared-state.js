@@ -1,5 +1,5 @@
 import Big from "../../vendor/big.js";
-import { costForActiveMs } from "../calculation/cost-for-active-time.js";
+import { costForActiveMs } from "../../billing/calculation/cost-for-active-time.js";
 
 export function settleSpreadDeveloperCostStates(sessions, nowMs) {
   const activeWindows = sessions.flatMap(({ state }) => {

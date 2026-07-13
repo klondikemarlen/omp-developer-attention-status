@@ -1,4 +1,4 @@
-import type { TimeLogEntry } from "./model.js"
+import type { TimeLogEntry } from "@/time-log/domain/model.js"
 
 export type CompactedTimeLogRow = {
   allocationMilliseconds: number
