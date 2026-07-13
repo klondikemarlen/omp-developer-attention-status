@@ -1,7 +1,7 @@
 import { parseDeveloperCostConfig } from "../../billing/index.js";
-import { LEGACY_PLUGIN_NAME, PLUGIN_NAME } from "../plugin-name.js";
-import { readDeveloperCostConfigFile } from "./read-developer-cost-config-file.js";
-import { settingsForPlugin } from "../settings-for-plugin.js";
+import { LEGACY_PLUGIN_NAME, PLUGIN_NAME } from "../../config/plugin-name.js";
+import { readDeveloperCostConfigFile } from "../../config/loader/read-developer-cost-config-file.js";
+import { settingsForPlugin } from "../../config/settings-for-plugin.js";
 
 export async function loadDeveloperCostConfigFromFiles(
   pluginsLockfile,

@@ -7,14 +7,14 @@ import { errorMessage } from "../utils/error-message.js";
 import {
   DEVELOPER_COST_STATE_ENTRY,
   loadPersistedDeveloperCostState,
-} from "./session-state.js";
-import { isTopLevelSession } from "./session-classification.js";
+} from "../extension/session-state.js";
+import { isTopLevelSession } from "../extension/session-classification.js";
 import {
   clearStatus,
   summaryText,
   statusText,
   updateStatus,
-} from "./status-presenter.js";
+} from "../extension/status-presenter.js";
 
 export class DeveloperCostStatusRuntime {
   pi;

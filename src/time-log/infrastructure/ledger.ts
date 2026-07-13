@@ -2,11 +2,11 @@ import { createHash, randomUUID } from "node:crypto"
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import path from "node:path"
-import { lock } from "../../vendor/proper-lockfile.js"
-import { exportTimeEntries } from "../domain/summary.js"
-import { parseTimeLogEntry } from "../domain/parse-entry.js"
-import type { AutomaticTimeLogInput, TimeLogEntry } from "../domain/model.js"
-export type { AutomaticTimeLogInput, TimeLogEntry } from "../domain/model.js"
+import { lock } from "@/vendor/proper-lockfile.js"
+import { exportTimeEntries } from "@/time-log/domain/summary.js"
+import { parseTimeLogEntry } from "@/time-log/domain/parse-entry.js"
+import type { AutomaticTimeLogInput, TimeLogEntry } from "@/time-log/domain/model.js"
+export type { AutomaticTimeLogInput, TimeLogEntry } from "@/time-log/domain/model.js"
 
 type TimeLogState = {
   entries: TimeLogEntry[]

@@ -14,8 +14,9 @@
     "THIRD_PARTY_NOTICES.txt"
   ],
   "scripts": {
-    "build": "npm run build:types && npm run build:vendor && npm run format:dist",
-    "build:types": "rm -rf dist && tsc --noEmit -p tsconfig.json && tsc -p tsconfig.build.json",
+    "build": "npm run build:types && npm run build:source && npm run build:vendor && npm run format:dist",
+    "build:types": "rm -rf dist && tsc --noEmit -p tsconfig.json",
+    "build:source": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "build:vendor": "node scripts/bundle-runtime-dependencies.mjs",
     "format:dist": "prettier --write dist && node scripts/separate-generated-declarations.mjs",
     "test": "node --import tsx --test test/*.test.ts"
@@ -89,6 +90,7 @@
     "esbuild": "^0.28.1",
     "prettier": "^3.9.5",
     "proper-lockfile": "^4.1.2",
+    "tsc-alias": "^1.9.1",
     "tsx": "^4.20.6",
     "typescript": "^5.8.2"
   },

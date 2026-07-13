@@ -1,4 +1,4 @@
-import type { PluginSettingsByName } from "./plugin-settings-by-name.js"
+import type { PluginSettingsByName } from "@/config/plugin-settings-by-name.js"
 
 type PluginConfigWithSettings = {
   settings?: PluginSettingsByName

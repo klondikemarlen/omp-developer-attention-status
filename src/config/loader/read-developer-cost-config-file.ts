@@ -1,6 +1,6 @@
 import fs from "node:fs"
 
-import { isEnoent } from "../../utils/is-enoent.js"
+import { isEnoent } from "@/utils/is-enoent.js"
 
 export async function readDeveloperCostConfigFile<T>(filePath: string): Promise<T | undefined> {
   try {

@@ -1,5 +1,5 @@
-import type { TimeLogEntry } from "./model.js"
-import { isFiniteNumber } from "../../utils/is-finite-number.js"
+import type { TimeLogEntry } from "@/time-log/domain/model.js"
+import { isFiniteNumber } from "@/utils/is-finite-number.js"
 
 export function parseTimeLogEntry(value: unknown): TimeLogEntry | undefined {
   if (typeof value !== "object" || value === null) return undefined

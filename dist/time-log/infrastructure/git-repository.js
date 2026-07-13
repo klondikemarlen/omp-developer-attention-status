@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promisify } from "node:util";
-import { repositoryIdentityFromRemoteUrl } from "../domain/repository-identity.js";
+import { repositoryIdentityFromRemoteUrl } from "../../time-log/domain/repository-identity.js";
 
 const execFileAsync = promisify(execFile);
 export async function resolveGitRepository(cwd) {

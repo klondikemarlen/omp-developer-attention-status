@@ -5,10 +5,10 @@ import {
   DEFAULT_MONTHLY_SALARY,
   DEFAULT_REFRESH_INTERVAL_SECONDS,
   DEFAULT_WEEKS_PER_YEAR,
-} from "./defaults.js"
-import type { DeveloperCostConfig, DeveloperCostOptions } from "./model.js"
-import { parseNonEmptyString } from "../../utils/parse-non-empty-string.js"
-import { parsePositiveNumber } from "../../utils/parse-positive-number.js"
+} from "@/billing/config/defaults.js"
+import type { DeveloperCostConfig, DeveloperCostOptions } from "@/billing/config/model.js"
+import { parseNonEmptyString } from "@/utils/parse-non-empty-string.js"
+import { parsePositiveNumber } from "@/utils/parse-positive-number.js"
 
 export function parseDeveloperCostConfig(options?: DeveloperCostOptions): DeveloperCostConfig {
   const rawMonthlySalary = options?.monthlySalary ?? DEFAULT_MONTHLY_SALARY

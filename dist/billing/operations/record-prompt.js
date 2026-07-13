@@ -1,5 +1,5 @@
-import { MS_PER_MINUTE } from "../calculation/time-constants.js";
-import { settleDeveloperCostState } from "./settle-state.js";
+import { MS_PER_MINUTE } from "../../billing/calculation/time-constants.js";
+import { settleDeveloperCostState } from "../../billing/operations/settle-state.js";
 
 export function recordDeveloperPrompt(state, promptAtMs, config) {
   const nextState = settleDeveloperCostState(state, promptAtMs, config);

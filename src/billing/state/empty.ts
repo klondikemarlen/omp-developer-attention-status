@@ -1,4 +1,4 @@
-import type { DeveloperCostState } from "./model.js"
+import type { DeveloperCostState } from "@/billing/state/model.js"
 
 export function emptyDeveloperCostState(): DeveloperCostState {
   return {

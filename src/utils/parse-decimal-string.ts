@@ -1,6 +1,6 @@
-import Big from "../vendor/big.js"
+import Big from "@/vendor/big.js"
 
-import { isFiniteNumber } from "./is-finite-number.js"
+import { isFiniteNumber } from "@/utils/is-finite-number.js"
 
 export function parseDecimalString(value: unknown): string | undefined {
   if (isFiniteNumber(value)) return Big(value).toString()
