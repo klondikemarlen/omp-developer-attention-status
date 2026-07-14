@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Snapshot configured provider-neutral category IDs and labels on billable project records, summaries,
+  and previews.
+
 ## [2.1.1] - 2026-07-14
 
 ### Fixed

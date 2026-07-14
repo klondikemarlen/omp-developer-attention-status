@@ -15,6 +15,9 @@ function createBillableWorkEntry(record, description) {
     clientLabel: record.clientLabel,
     projectId: record.projectId ?? record.repository,
     projectName: record.projectName ?? record.repository,
+    ...(record.categoryId === undefined || record.categoryLabel === undefined
+      ? {}
+      : { categoryId: record.categoryId, categoryLabel: record.categoryLabel }),
     description,
     durationMs: record.durationMs,
     ratePerHour: record.ratePerHour,

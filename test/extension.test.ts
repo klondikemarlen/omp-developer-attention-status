@@ -145,6 +145,9 @@ test("uses the current repository as the default billable project target", async
       projects: {
         "github.com/acme/project": "Project Billing",
       },
+      categories: {
+        "github.com/acme/project": { id: "programming", label: "Programming" },
+      },
     },
   })
 
@@ -162,6 +165,9 @@ test("uses the current repository as the default billable project target", async
       assert.equal(attention.repository, "github.com/acme/project")
       assert.equal(attention.projectId, "github.com/acme/project")
       assert.equal(attention.projectName, "Project Billing")
+      assert.equal(attention.categoryId, "programming")
+      assert.equal(attention.categoryLabel, "Programming")
+
 
       await runtime.commands.get("project-time")?.handler("", context as never)
       assert.deepEqual(runtime.notifications.at(-1), {
@@ -175,17 +181,40 @@ test("uses the current repository as the default billable project target", async
         ].join("\n"),
         type: "info",
       })
+      await runtime.commands.get("project-time")?.handler("billable", context as never)
+      assert.deepEqual(runtime.notifications.at(-1), {
+        message: "Acme / Programming: attention 1 units, 300000ms @ 120 USD/h = 10.00 USD\nAcme / Programming: ai 1 units, 0ms @ 30 USD/h = 0.00 USD",
+        type: "info",
+      })
+
 
       await runtime.commands.get("project-time")?.handler("billable preview", context as never)
       const preview = JSON.parse(runtime.notifications.at(-1)?.message ?? "[]")
       assert.deepEqual(
-        preview.map((entry: { project_id: string; project_name: string }) => ({
+        preview.map((entry: {
+          project_id: string
+          project_name: string
+          category_id: string
+          category_label: string
+        }) => ({
           projectId: entry.project_id,
           projectName: entry.project_name,
+          categoryId: entry.category_id,
+          categoryLabel: entry.category_label,
         })),
         [
-          { projectId: "github.com/acme/project", projectName: "Project Billing" },
-          { projectId: "github.com/acme/project", projectName: "Project Billing" },
+          {
+            projectId: "github.com/acme/project",
+            projectName: "Project Billing",
+            categoryId: "programming",
+            categoryLabel: "Programming",
+          },
+          {
+            projectId: "github.com/acme/project",
+            projectName: "Project Billing",
+            categoryId: "programming",
+            categoryLabel: "Programming",
+          },
         ],
       )
     } finally {

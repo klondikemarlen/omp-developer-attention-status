@@ -8,12 +8,21 @@ export function summarizeBillableRecords(records) {
       record.currency,
       record.ratePerHour,
       record.sourceKind,
+      record.categoryId ?? "",
+      record.categoryLabel ?? "",
     ].join("\u0000");
     const existing = summaries.get(key);
     if (existing === undefined) {
       summaries.set(key, {
         clientId: record.clientId,
         clientLabel: record.clientLabel,
+        ...(record.categoryId === undefined ||
+        record.categoryLabel === undefined
+          ? {}
+          : {
+              categoryId: record.categoryId,
+              categoryLabel: record.categoryLabel,
+            }),
         currency: record.currency,
         ratePerHour: record.ratePerHour,
         sourceKind: record.sourceKind,
