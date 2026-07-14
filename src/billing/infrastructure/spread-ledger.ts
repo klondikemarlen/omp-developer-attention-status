@@ -28,7 +28,7 @@ export class SpreadBillingLedger {
     this.filePath = filePath ?? path.join(
       homedir(),
       ".omp",
-      "developer-cost-status",
+      "project-time",
       "spread-billing.json",
     )
   }
@@ -97,7 +97,7 @@ export class SpreadBillingLedger {
 
       const settledSession = ledger.sessions.get(sessionId)
       if (settledSession === undefined) {
-        throw new Error(`Developer cost status cannot settle session ${sessionId}.`)
+        throw new Error(`Project Time cannot settle session ${sessionId}.`)
       }
 
       let nextState = settledSession.state
@@ -167,7 +167,7 @@ export class SpreadBillingLedger {
     try {
       value = JSON.parse(content)
     } catch {
-      throw new Error("Developer cost status spread billing state is unreadable.")
+      throw new Error("Project Time shared billing state is unreadable.")
     }
 
     if (
@@ -178,12 +178,12 @@ export class SpreadBillingLedger {
       value.sessions === null ||
       Array.isArray(value.sessions)
     ) {
-      throw new Error("Developer cost status spread billing state is invalid.")
+      throw new Error("Project Time shared billing state is invalid.")
     }
 
     const rawSettledThroughMs = "settledThroughMs" in value ? value.settledThroughMs : 0
     if (typeof rawSettledThroughMs !== "number" || !Number.isFinite(rawSettledThroughMs)) {
-      throw new Error("Developer cost status spread billing state is invalid.")
+      throw new Error("Project Time shared billing state is invalid.")
     }
 
     const sessions = new Map<string, LedgerSession>()
@@ -195,12 +195,12 @@ export class SpreadBillingLedger {
         !("config" in entry) ||
         !isStoredConfig(entry.config)
       ) {
-        throw new Error("Developer cost status spread billing state is invalid.")
+        throw new Error("Project Time shared billing state is invalid.")
       }
 
       const state = parseDeveloperCostState(entry.state)
       if (state === undefined) {
-        throw new Error("Developer cost status spread billing state is invalid.")
+        throw new Error("Project Time shared billing state is invalid.")
       }
 
       sessions.set(sessionId, {

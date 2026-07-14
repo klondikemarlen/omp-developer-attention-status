@@ -3,7 +3,7 @@ import {
   formatDeveloperCost,
 } from "../billing/index.js";
 
-export const STATUS_KEY = "developer-cost-status";
+export const STATUS_KEY = "project-time";
 export function updateStatus(ctx, state, config) {
   ctx.ui.setStatus(
     STATUS_KEY,
@@ -30,7 +30,7 @@ export function summaryText(state, config, sessionId, nowMs) {
     }
   }
   return [
-    "Developer cost summary",
+    "Project Time summary",
     `Session: ${sessionId}`,
     `Cost: ${statusText(state, config)}`,
     `Active time: ${durationText(state.activeMilliseconds)}`,

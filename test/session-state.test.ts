@@ -13,7 +13,7 @@ test("defaults attention metrics for a legacy persisted cost entry", () => {
   const state = loadPersistedDeveloperCostState([
     {
       type: "custom",
-      customType: "developer-cost-status.state",
+      customType: "project-time.state",
       data: { totalCost: "12.34" },
     },
   ])
@@ -27,14 +27,14 @@ test("loads the latest persisted developer cost entry", () => {
   const state = loadPersistedDeveloperCostState([
     {
       type: "custom",
-      customType: "developer-cost-status.state",
+      customType: "project-time.state",
       data: {
         totalCost: "1.23",
       },
     },
     {
       type: "custom",
-      customType: "developer-cost-status.state",
+      customType: "project-time.state",
       data: {
         totalCost: "4.56",
         promptCount: 7,
@@ -58,7 +58,7 @@ test("ignores invalid persisted state", () => {
   const state = loadPersistedDeveloperCostState([
     {
       type: "custom",
-      customType: "developer-cost-status.state",
+      customType: "project-time.state",
       data: {
         totalUsd: 7.89,
       },

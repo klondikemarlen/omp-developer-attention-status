@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-07-14
+
+### Changed
+
+- Rename the package, command, settings, status state, local storage, repository, and published spec to Project Time.
+- Migrate local billable, time-log, and shared spread-billing data once; stop on destination conflicts instead of merging records.
+
 ## [1.2.1] - 2026-07-14
 
 ### Fixed
@@ -17,14 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add private session-description records and `/developer-cost-status billable preview` provider-neutral JSON entries; no external-system adapter or payload is defined.
+- Add private session-description records and a provider-neutral billable preview; no external-system adapter or payload is defined.
 
 ## [1.1.0] - 2026-07-14
 
 ### Added
 
 - Record separate, client-attributed five-minute attention tokens and exact AI intervals in local billable ledgers.
-- Add `/developer-cost-status billable` summaries with independent rate and currency snapshots.
+- Add billable summaries with independent rate and currency snapshots.
 
 ### Changed
 
@@ -75,12 +82,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add persisted developer attention metrics and `/developer-cost-status summary`.
+- Add persisted developer attention metrics and a detailed project-time summary.
 - Divide overlapping top-level session cost across the active sessions.
 
 ### Changed
 
-- Rename the package and repository to `omp-developer-attention-status`.
+- Establish the previous package and repository identity.
 
 ### Fixed
 

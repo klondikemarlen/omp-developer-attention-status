@@ -11,7 +11,7 @@ export async function readDeveloperCostConfigFile<T>(filePath: string): Promise<
     if (isEnoent(error)) return undefined
 
     const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`Unable to read developer cost config at ${filePath}: ${message}`)
+    throw new Error(`Unable to read Project Time config at ${filePath}: ${message}`)
   }
 }
 

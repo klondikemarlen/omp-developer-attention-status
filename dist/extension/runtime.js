@@ -10,11 +10,17 @@ import { SpreadBillingLedger } from "../billing/infrastructure/spread-ledger.js"
 import { loadDeveloperCostConfig } from "../config/loader/load-developer-cost-config.js";
 import { AutomaticTimeLogRecorder } from "../time-log/recorder.js";
 import { errorMessage } from "../utils/error-message.js";
+import path from "node:path";
 import {
   DEVELOPER_COST_STATE_ENTRY,
   loadPersistedDeveloperCostState,
 } from "../extension/session-state.js";
 import { isTopLevelSession } from "../extension/session-classification.js";
+import {
+  defaultProjectTimeDataRoot,
+  migrateProjectTimeDataRoot,
+  prepareProjectTimeDataRoot,
+} from "../extension/local-data-root.js";
 import {
   clearStatus,
   summaryText,
@@ -22,7 +28,7 @@ import {
   updateStatus,
 } from "../extension/status-presenter.js";
 
-export class DeveloperCostStatusRuntime {
+export class ProjectTimeRuntime {
   pi;
 
   loadConfig;
@@ -35,6 +41,12 @@ export class DeveloperCostStatusRuntime {
 
   generateTitle;
 
+  localDataMigration;
+
+  usesDefaultDataRoot;
+
+  migrateLocalData;
+
   billableSessionIds = new Set();
 
   runtimeState = {};
@@ -45,56 +57,91 @@ export class DeveloperCostStatusRuntime {
     return config.refreshIntervalSeconds * MS_PER_SECOND;
   }
 
-  static defaultRefreshIntervalMs =
-    DeveloperCostStatusRuntime.refreshIntervalMs(parseDeveloperCostConfig());
+  static defaultRefreshIntervalMs = ProjectTimeRuntime.refreshIntervalMs(
+    parseDeveloperCostConfig(),
+  );
 
   constructor(pi, options = {}) {
     this.pi = pi;
     this.loadConfig = options.loadConfig ?? loadDeveloperCostConfig;
-    this.ledger = new SpreadBillingLedger(options.ledgerPath);
-    this.timeLogRecorder = new AutomaticTimeLogRecorder(options.timeLogPath);
-    this.billableTimeRecorder = new BillableTimeRecorder(
-      options.billableTimePath,
+    const dataRoot = defaultProjectTimeDataRoot();
+    const usesDefaultDataRoot =
+      options.localDataMigration !== undefined ||
+      options.ledgerPath === undefined ||
+      options.timeLogPath === undefined ||
+      options.billableTimePath === undefined;
+    this.ledger = new SpreadBillingLedger(
+      options.ledgerPath ?? path.join(dataRoot, "spread-billing.json"),
     );
+    this.timeLogRecorder = new AutomaticTimeLogRecorder(
+      options.timeLogPath ?? path.join(dataRoot, "time-log.json"),
+    );
+    this.billableTimeRecorder = new BillableTimeRecorder(
+      options.billableTimePath ?? dataRoot,
+    );
+    this.usesDefaultDataRoot = usesDefaultDataRoot;
+    this.migrateLocalData =
+      options.localDataMigration ??
+      (() =>
+        migrateProjectTimeDataRoot().then(() => prepareProjectTimeDataRoot()));
     this.generateTitle = options.generateTitle;
   }
 
   register() {
     this.scheduleNextRefresh();
-    this.pi.registerCommand("developer-cost-status", {
+    this.pi.registerCommand("project-time", {
       description:
-        "Show developer cost or attention summary for the current session",
+        "Show project time or attention summary for the current session",
       handler: async (args, ctx) => {
+        if (!(await this.localDataReady(ctx))) return;
         await this.showCurrentStatus(args, ctx);
       },
     });
     this.pi.on("session_start", async (_event, ctx) => {
+      if (!(await this.localDataReady(ctx))) return;
       await this.activateSession(ctx);
     });
     this.pi.on("session_switch", async (_event, ctx) => {
+      if (!(await this.localDataReady(ctx))) return;
       await this.activateSession(ctx);
     });
     this.pi.on("before_agent_start", async (_event, ctx) => {
+      if (!(await this.localDataReady(ctx))) return;
       await this.recordPrompt(ctx);
     });
     this.pi.on("turn_end", async (_event, ctx) => {
+      if (!(await this.localDataReady(ctx))) return;
       await this.settleCurrentTurn(ctx);
     });
     this.pi.on("session_compact", async (event, ctx) => {
+      if (!(await this.localDataReady(ctx))) return;
       await this.refreshBillableDescription(
         ctx,
         event.compactionEntry.shortSummary ?? event.compactionEntry.summary,
       );
     });
     this.pi.on("session_shutdown", async (_event, ctx) => {
+      if (!(await this.localDataReady(ctx))) return;
       await this.shutdownSession(ctx);
     });
+  }
+
+  async localDataReady(ctx) {
+    if (!this.usesDefaultDataRoot) return true;
+    try {
+      this.localDataMigration ??= this.migrateLocalData();
+      await this.localDataMigration;
+      return true;
+    } catch (error) {
+      ctx.ui.notify(errorMessage(error), "error");
+      return false;
+    }
   }
 
   async showCurrentStatus(args, ctx) {
     if (!isTopLevelSession(ctx.sessionManager)) {
       ctx.ui.notify(
-        "Developer cost status is only tracked for top-level sessions.",
+        "Project Time is only tracked for top-level sessions.",
         "info",
       );
       return;
@@ -273,14 +320,14 @@ export class DeveloperCostStatusRuntime {
       this.runtimeState.activeContext === undefined ||
       this.runtimeState.activeSessionId === undefined
     ) {
-      return DeveloperCostStatusRuntime.defaultRefreshIntervalMs;
+      return ProjectTimeRuntime.defaultRefreshIntervalMs;
     }
     const activeContext = this.runtimeState.activeContext;
     const activeSessionId = this.runtimeState.activeSessionId;
     const config = await this.loadConfigForStatus(activeContext);
     if (config === undefined) {
       this.clearActiveStatus(activeContext);
-      return DeveloperCostStatusRuntime.defaultRefreshIntervalMs;
+      return ProjectTimeRuntime.defaultRefreshIntervalMs;
     }
     const currentState = this.stateForSession(activeContext, activeSessionId);
     const settledState = await this.settleAndRecord(
@@ -294,12 +341,10 @@ export class DeveloperCostStatusRuntime {
     this.pi.appendEntry(DEVELOPER_COST_STATE_ENTRY, settledState);
     this.rememberActiveSession(activeContext, activeSessionId, settledState);
     updateStatus(activeContext, settledState, config);
-    return DeveloperCostStatusRuntime.refreshIntervalMs(config);
+    return ProjectTimeRuntime.refreshIntervalMs(config);
   }
 
-  scheduleNextRefresh(
-    waitMs = DeveloperCostStatusRuntime.defaultRefreshIntervalMs,
-  ) {
+  scheduleNextRefresh(waitMs = ProjectTimeRuntime.defaultRefreshIntervalMs) {
     clearTimeout(this.runtimeState.refreshTimer);
     const timer = setTimeout(async () => {
       this.runtimeState.refreshTimer = undefined;
@@ -319,7 +364,7 @@ export class DeveloperCostStatusRuntime {
     const activeContext = this.runtimeState.activeContext;
     if (activeContext === undefined) return;
     activeContext.ui.notify(
-      `Developer cost status refresh error: ${errorMessage(error)}`,
+      `Project Time refresh error: ${errorMessage(error)}`,
       "error",
     );
     this.clearActiveStatus(activeContext);
@@ -372,7 +417,7 @@ export class DeveloperCostStatusRuntime {
       return await this.loadConfig(ctx.cwd);
     } catch (error) {
       ctx.ui.notify(
-        `Developer cost status config error: ${errorMessage(error)}`,
+        `Project Time config error: ${errorMessage(error)}`,
         "error",
       );
       return undefined;

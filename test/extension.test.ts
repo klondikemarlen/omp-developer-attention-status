@@ -16,9 +16,9 @@ import {
 import { SpreadBillingLedger } from "../src/billing/infrastructure/spread-ledger.js"
 import { descriptionInputFromSession } from "../src/billable-time/domain/description-context.js"
 import type { ConfigLoader } from "../src/extension/types.js"
-import { DeveloperCostStatusRuntime } from "../src/extension/runtime.js"
+import { ProjectTimeRuntime } from "../src/extension/runtime.js"
 import { DEVELOPER_COST_STATE_ENTRY } from "../src/extension/session-state.js"
-import developerCostStatusExtension, { type ExtensionApi } from "../src/index.js"
+import projectTimeExtension, { type ExtensionApi } from "../src/index.js"
 import { TimeLogLedger } from "../src/time-log/infrastructure/ledger.js"
 import { resolveGitRepository } from "../src/time-log/infrastructure/git-repository.js"
 
@@ -89,7 +89,7 @@ test("records billable clocks only for mapped top-level sessions", async () => {
       assert.equal(attention.durationMs, 300_000)
       assert.equal(interval.durationMs, 1_000)
       assert.doesNotMatch(JSON.stringify({ attention, interval }), /top secret prompt|child prompt/)
-      await runtime.commands.get("developer-cost-status")?.handler("billable", topLevelContext as never)
+      await runtime.commands.get("project-time")?.handler("billable", topLevelContext as never)
       assert.deepEqual(runtime.notifications.at(-1), {
         message: "Acme: attention 1 units, 300000ms @ 120 USD/h = 10.00 USD\nAcme: ai 1 units, 1000ms @ 30 USD/h = 0.01 USD",
         type: "info",
@@ -125,7 +125,7 @@ test("stores local billable descriptions and previews provider-neutral entries",
         "Unlabeled billable work",
       ])
 
-      await runtime.commands.get("developer-cost-status")?.handler("billable preview", context as never)
+      await runtime.commands.get("project-time")?.handler("billable preview", context as never)
       const preview = JSON.parse(runtime.notifications.at(-1)?.message ?? "")
       assert.deepEqual(preview.map((entry: { source_kind: string }) => entry.source_kind), ["attention", "ai"])
       assert.doesNotMatch(JSON.stringify(preview), /top secret prompt/)
@@ -258,7 +258,7 @@ test("describes a superseded mapped interval before an unmapped prompt", async (
 })
 
 test("converts configured refresh seconds to milliseconds", () => {
-  const runtime = DeveloperCostStatusRuntime as unknown as {
+  const runtime = ProjectTimeRuntime as unknown as {
     refreshIntervalMs(config: { refreshIntervalSeconds: number }): number
   }
 
@@ -302,7 +302,7 @@ test("feature scenario tracks visible developer cost across prompts and idle tim
     assert.equal(runtime.statusText, "dim:$8.24 (dev)")
 
     setNow(start + 10 * 60 * 1000)
-    await runtime.commands.get("developer-cost-status")?.handler("", ctx as never)
+    await runtime.commands.get("project-time")?.handler("", ctx as never)
     assert.deepEqual(runtime.notifications.at(-1), {
       message: "$8.24 (dev)",
       type: "info",
@@ -332,12 +332,12 @@ test("reports a detailed attention summary without changing the compact status",
     await runtime.handlers.get("before_agent_start")?.({ prompt: "first prompt" } as never, ctx as never)
 
     nowMs = start + 2 * 60 * 1000
-    await runtime.commands.get("developer-cost-status")?.handler("summary", ctx as never)
+    await runtime.commands.get("project-time")?.handler("summary", ctx as never)
 
     assert.deepEqual(runtime.notifications, [
       {
         message:
-          "Developer cost summary\nSession: session-1\nCost: $1.83 (dev)\nActive time: 2m 0s\nPrompt count: 1\nLast prompt: 2m 0s ago (2026-01-01T12:00:00.000Z)",
+          "Project Time summary\nSession: session-1\nCost: $1.83 (dev)\nActive time: 2m 0s\nPrompt count: 1\nLast prompt: 2m 0s ago (2026-01-01T12:00:00.000Z)",
         type: "info",
       },
     ])
@@ -614,12 +614,12 @@ test("reports an unavailable last prompt for an unrenderable persisted timestamp
   })
 
   await assert.doesNotReject(
-    runtime.commands.get("developer-cost-status")!.handler("summary", ctx as never),
+    runtime.commands.get("project-time")!.handler("summary", ctx as never),
   )
   assert.deepEqual(runtime.notifications, [
     {
       message:
-        "Developer cost summary\nSession: session-1\nCost: $12.34 (dev)\nActive time: 1m 0s\nPrompt count: 1\nLast prompt: unavailable",
+        "Project Time summary\nSession: session-1\nCost: $12.34 (dev)\nActive time: 1m 0s\nPrompt count: 1\nLast prompt: unavailable",
       type: "info",
     },
   ])
@@ -654,7 +654,7 @@ test("restores persisted state from full session history", async () => {
     ],
   })
 
-  await runtime.commands.get("developer-cost-status")?.handler("", ctx as never)
+  await runtime.commands.get("project-time")?.handler("", ctx as never)
 
   assert.deepEqual(runtime.notifications, [
     {
@@ -738,11 +738,11 @@ test("reports child sessions from the status command", async () => {
   const runtime = createExtensionRuntime()
   const ctx = createContext(runtime, { parentSession: "/tmp/parent.jsonl" })
 
-  await runtime.commands.get("developer-cost-status")?.handler("", ctx as never)
+  await runtime.commands.get("project-time")?.handler("", ctx as never)
 
   assert.deepEqual(runtime.notifications, [
     {
-      message: "Developer cost status is only tracked for top-level sessions.",
+      message: "Project Time is only tracked for top-level sessions.",
       type: "info",
     },
   ])
@@ -772,7 +772,7 @@ test("shows snapshotted billable time when current config cannot load", async ()
     })
     const ctx = createContext(runtime, { parentSession: undefined })
 
-    await runtime.commands.get("developer-cost-status")?.handler("billable", ctx as never)
+    await runtime.commands.get("project-time")?.handler("billable", ctx as never)
 
     assert.deepEqual(runtime.notifications, [{
       message: "Icefog: attention 1 units, 300000ms @ 120 CAD/h = 10.00 CAD",
@@ -791,11 +791,11 @@ test("reports config errors from the status command", async () => {
   })
   const ctx = createContext(runtime, { parentSession: undefined })
 
-  await runtime.commands.get("developer-cost-status")?.handler("", ctx as never)
+  await runtime.commands.get("project-time")?.handler("", ctx as never)
 
   assert.deepEqual(runtime.notifications, [
     {
-      message: "Developer cost status config error: broken config",
+      message: "Project Time config error: broken config",
       type: "error",
     },
   ])
@@ -816,7 +816,7 @@ test("clears status and skips billing when prompt config load fails", async () =
   assert.equal(runtime.statusText, undefined)
   assert.deepEqual(runtime.notifications, [
     {
-      message: "Developer cost status config error: broken config",
+      message: "Project Time config error: broken config",
       type: "error",
     },
   ])
@@ -837,7 +837,7 @@ test("clears status and skips turn-end persistence when config load fails", asyn
   assert.equal(runtime.statusText, undefined)
   assert.deepEqual(runtime.notifications, [
     {
-      message: "Developer cost status config error: broken config",
+      message: "Project Time config error: broken config",
       type: "error",
     },
   ])
@@ -858,7 +858,7 @@ test("clears status when session activation config load fails", async () => {
   assert.equal(runtime.statusText, undefined)
   assert.deepEqual(runtime.notifications, [
     {
-      message: "Developer cost status config error: broken config",
+      message: "Project Time config error: broken config",
       type: "error",
     },
   ])
@@ -879,7 +879,7 @@ test("clears status when session switch config load fails", async () => {
   assert.equal(runtime.statusText, undefined)
   assert.deepEqual(runtime.notifications, [
     {
-      message: "Developer cost status config error: broken config",
+      message: "Project Time config error: broken config",
       type: "error",
     },
   ])
@@ -1141,7 +1141,7 @@ function createExtensionRuntime(options: RuntimeOptions = {}): Runtime {
     },
   }
 
-  developerCostStatusExtension(pi, {
+  projectTimeExtension(pi, {
     ledgerPath: options.ledgerPath ?? temporaryLedgerPath(),
     loadConfig: options.loadConfig ?? (async () => parseDeveloperCostConfig()),
     timeLogPath: options.timeLogPath ?? temporaryLedgerPath(),

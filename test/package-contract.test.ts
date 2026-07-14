@@ -17,7 +17,7 @@ test("package ships the OMP entrypoint and canonical spec", async () => {
   const rawPackageJson = await readFile(packageJsonUrl, "utf8")
   const packageJson = JSON.parse(rawPackageJson) as PackageJson
 
-  assert.equal(packageJson.name, "omp-developer-attention-status")
+  assert.equal(packageJson.name, "omp-project-time")
 
   assert.deepEqual(packageJson.omp?.extensions, ["./dist/index.js"])
   assert.ok(packageJson.files?.includes("dist"), "expected dist/ in package files")
@@ -38,7 +38,7 @@ test("package ships the OMP entrypoint and canonical spec", async () => {
     "rm -rf dist && tsc --noEmit -p tsconfig.json",
   )
 
-  const canonicalSpecUrl = new URL("../spec/developer-attention-status.yml", import.meta.url)
+  const canonicalSpecUrl = new URL("../spec/project-time.yml", import.meta.url)
 
   const lockfileBundleUrl = new URL("../dist/vendor/proper-lockfile.js", import.meta.url)
   const lockfileBundle = await readFile(lockfileBundleUrl, "utf8")
@@ -50,7 +50,9 @@ test("package ships the OMP entrypoint and canonical spec", async () => {
   assert.match(bigBundle, /node_modules\/big\.js/)
   assert.doesNotMatch(bigBundle, /from ["']big\.js["']/)
   const canonicalSpec = await readFile(canonicalSpecUrl, "utf8")
-  assert.match(canonicalSpec, /^feature: developer-attention-status$/m)
+  assert.match(canonicalSpec, /^feature: project-time$/m)
+  assert.doesNotMatch(rawPackageJson, /omp-developer-attention-status/)
+  assert.doesNotMatch(canonicalSpec, /developer-attention-status/)
 })
 
 test("rewrites source aliases to runtime-safe relative imports", async () => {

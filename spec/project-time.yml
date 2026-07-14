@@ -1,15 +1,15 @@
-feature: developer-attention-status
+feature: project-time
 status: stable
 requirements:
   - id: prompt_driven_activity
     title: Prompt-driven activity
-    requirement: Only a real user prompt to a top-level agent session starts or extends developer-cost tracking.
-    rationale: Passive UI refreshes, subagents, and artifact sessions must not create developer time cost.
+    requirement: Only a real user prompt to a top-level agent session starts or extends Project Time tracking.
+    rationale: Passive UI refreshes, subagents, and artifact sessions must not create project time cost.
   - id: active_window
     title: Five-minute activity window
     requirement: A session is active only while the user has sent at least one prompt within the last activeWindowMinutes.
     default: 5 minutes
-    rationale: Developer cost represents active collaboration time, not idle terminal time.
+    rationale: Project Time represents active collaboration time, not idle terminal time.
   - id: continuous_accrual
     title: Continuous active-time accrual
     requirement: While active, cost accrues continuously according to elapsed active milliseconds, not only after full five-minute windows.
@@ -28,14 +28,14 @@ requirements:
   - id: session_scope
     title: Session-scoped meter
     requirement: Track and persist cost by top-level session id; resuming the same session continues its meter.
-    rationale: Each top-level session should preserve its own developer-cost total.
+    rationale: Each top-level session should preserve its own Project Time total.
   - id: top_level_only
     title: Top-level sessions only
-    requirement: Subagent and artifact sessions must not create or display their own developer-cost meter.
+    requirement: Subagent and artifact sessions must not create or display their own Project Time meter.
     rationale: Subagent work is driven by the top-level user prompt and should not double-count developer activity.
   - id: attention_metrics
     title: Persisted developer attention metrics
-    requirement: Persist prompt count and active milliseconds for each top-level session, and expose developer cost, active time, prompt count, last prompt age/time, and session id through the summary command.
+    requirement: Persist prompt count and active milliseconds for each top-level session, and expose Project Time cost, active time, prompt count, last prompt age/time, and session id through the summary command.
     rationale: Cost alone does not show how much human steering a hands-off session consumed.
   - id: spread_billing
     title: Multi-session spread billing

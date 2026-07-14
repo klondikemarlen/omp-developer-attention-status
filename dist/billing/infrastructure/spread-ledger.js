@@ -12,12 +12,7 @@ export class SpreadBillingLedger {
   constructor(filePath) {
     this.filePath =
       filePath ??
-      path.join(
-        homedir(),
-        ".omp",
-        "developer-cost-status",
-        "spread-billing.json",
-      );
+      path.join(homedir(), ".omp", "project-time", "spread-billing.json");
   }
 
   async recordPrompt(sessionId, state, promptAtMs, config) {
@@ -68,9 +63,7 @@ export class SpreadBillingLedger {
       ledger.settledThroughMs = settlementAtMs;
       const settledSession = ledger.sessions.get(sessionId);
       if (settledSession === undefined) {
-        throw new Error(
-          `Developer cost status cannot settle session ${sessionId}.`,
-        );
+        throw new Error(`Project Time cannot settle session ${sessionId}.`);
       }
       let nextState = settledSession.state;
       if (updateKind === "prompt") {
@@ -141,9 +134,7 @@ export class SpreadBillingLedger {
     try {
       value = JSON.parse(content);
     } catch {
-      throw new Error(
-        "Developer cost status spread billing state is unreadable.",
-      );
+      throw new Error("Project Time shared billing state is unreadable.");
     }
     if (
       typeof value !== "object" ||
@@ -153,7 +144,7 @@ export class SpreadBillingLedger {
       value.sessions === null ||
       Array.isArray(value.sessions)
     ) {
-      throw new Error("Developer cost status spread billing state is invalid.");
+      throw new Error("Project Time shared billing state is invalid.");
     }
     const rawSettledThroughMs =
       "settledThroughMs" in value ? value.settledThroughMs : 0;
@@ -161,7 +152,7 @@ export class SpreadBillingLedger {
       typeof rawSettledThroughMs !== "number" ||
       !Number.isFinite(rawSettledThroughMs)
     ) {
-      throw new Error("Developer cost status spread billing state is invalid.");
+      throw new Error("Project Time shared billing state is invalid.");
     }
     const sessions = new Map();
     for (const [sessionId, entry] of Object.entries(value.sessions)) {
@@ -172,15 +163,11 @@ export class SpreadBillingLedger {
         !("config" in entry) ||
         !isStoredConfig(entry.config)
       ) {
-        throw new Error(
-          "Developer cost status spread billing state is invalid.",
-        );
+        throw new Error("Project Time shared billing state is invalid.");
       }
       const state = parseDeveloperCostState(entry.state);
       if (state === undefined) {
-        throw new Error(
-          "Developer cost status spread billing state is invalid.",
-        );
+        throw new Error("Project Time shared billing state is invalid.");
       }
       sessions.set(sessionId, {
         state,

@@ -6,7 +6,7 @@ import {
 } from "@/billing/index.js"
 import type { ExtensionContext } from "@/extension/types.js"
 
-export const STATUS_KEY = "developer-cost-status"
+export const STATUS_KEY = "project-time"
 
 export function updateStatus(
   ctx: ExtensionContext,
@@ -47,7 +47,7 @@ export function summaryText(
   }
 
   return [
-    "Developer cost summary",
+    "Project Time summary",
     `Session: ${sessionId}`,
     `Cost: ${statusText(state, config)}`,
     `Active time: ${durationText(state.activeMilliseconds)}`,

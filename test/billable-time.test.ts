@@ -16,7 +16,7 @@ import { BillableTimeRepository } from "../src/billable-time/infrastructure/ndjs
 import { summarizeBillableRecords } from "../src/billable-time/summary.js"
 import { billableWorkEntryPreview } from "../src/billable-time/presentation.js"
 
-const repository = "github.com/klondikemarlen/omp-developer-attention-status"
+const repository = "github.com/klondikemarlen/omp-project-time"
 
 function config() {
   return parseBillableTimeConfig({

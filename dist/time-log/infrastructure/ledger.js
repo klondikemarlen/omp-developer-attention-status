@@ -17,7 +17,7 @@ export class TimeLogLedger {
     const defaultPath = path.join(
       homedir(),
       ".omp",
-      "developer-attention-status",
+      "project-time",
       "time-log.json",
     );
     this.filePath = filePath ?? defaultPath;

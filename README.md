@@ -1,6 +1,6 @@
-# omp-developer-attention-status
+# omp-project-time
 
-OMP plugin that adds a developer attention and time-cost meter to the footer status line.
+OMP plugin that records project time, developer attention, and separately rated AI work.
 
 ## Intent
 
@@ -8,9 +8,9 @@ OMP plugin that adds a developer attention and time-cost meter to the footer sta
 developer attention consumed while they drive a session.
 
 **WHAT this plugin produces:** A compact footer status segment like `$0.16 (dev)` that stays
-active after each prompt, plus an on-demand summary of developer cost, active time, and prompts.
+active after each prompt, plus an on-demand summary of project time, active time, and prompts.
 
-Canonical feature requirements live in [`spec/developer-attention-status.yml`](spec/developer-attention-status.yml).
+Canonical feature requirements live in [`spec/project-time.yml`](spec/project-time.yml).
 
 **Decision Rules:**
 - **Prompt-driven billing:** Only user agent prompts start or extend the timer.
@@ -114,75 +114,74 @@ activeWindowMinutes = 5
 From GitHub:
 
 ```bash
-omp install github:klondikemarlen/omp-developer-attention-status
+omp plugin install github:klondikemarlen/omp-project-time
 ```
 
 For local development from a checkout:
 
 ```bash
-git clone https://github.com/klondikemarlen/omp-developer-attention-status.git
-cd omp-developer-attention-status
+git clone https://github.com/klondikemarlen/omp-project-time.git
+cd omp-project-time
 npm install
-omp install /absolute/path/to/omp-developer-attention-status
+omp plugin install /absolute/path/to/omp-project-time
 ```
 
-Replace `/absolute/path/to/omp-developer-attention-status` with your checkout path.
+Replace `/absolute/path/to/omp-project-time` with your checkout path.
 
 OMP symlinks a local path install and watches it for changes.
 
 After install, restart OMP if it is already running, or run `/reload-plugins`.
 
-Then run `/developer-cost-status` once to confirm the extension loaded.
+Then run `/project-time` once to confirm the extension loaded.
 
-## Migrate from `omp-developer-cost-status`
+## Migrate from `omp-developer-attention-status`
 
-The package and configuration key changed to `omp-developer-attention-status`. Stop OMP before
-migrating: loading both packages at once registers duplicate lifecycle handlers and can double-bill.
+Stop OMP before migrating. Loading both packages at once registers duplicate lifecycle handlers and
+can double-bill.
 
-1. Record existing global settings with `omp plugin config list omp-developer-cost-status`.
-2. Run `omp plugin uninstall omp-developer-cost-status`.
-3. Run `omp install github:klondikemarlen/omp-developer-attention-status`.
-4. Reapply each recorded setting with `omp plugin config set omp-developer-attention-status <key> <value>`.
+1. Record global settings with `omp plugin config list omp-developer-attention-status`.
+2. Run `omp plugin uninstall omp-developer-attention-status`.
+3. Run `omp plugin install github:klondikemarlen/omp-project-time`.
+4. Reapply settings with `omp plugin config set omp-project-time <key> <value>`.
+5. Copy each old `.omp/plugin-overrides.json` setting from
+   `omp-developer-attention-status` to `omp-project-time`.
 
-The new package reads legacy settings as a fallback while those keys still exist; canonical
-`omp-developer-attention-status` settings override them. The old uninstaller removes its global
-settings, so record them before uninstalling. Copy an old project
-`.omp/plugin-overrides.json` setting key to `omp-developer-attention-status` when needed.
-
-Existing `developer-cost-status.state` session entries, the shared
-`~/.omp/developer-cost-status/spread-billing.json` ledger, the configurable `label`, and the
-`/developer-cost-status` command remain unchanged. No accumulated session state is reset.
+On its first startup, Project Time atomically moves
+`~/.omp/developer-attention-status/` to `~/.omp/project-time/`, including billable ledgers and
+time logs. It also moves the prior shared spread-billing ledger. If both source and destination
+paths exist, it stops with a recovery message instead of merging data. Resolve that conflict
+manually, then restart OMP.
 
 ## Runtime support
 
 - Node.js: `>=20.6.0`
 - OMP: tested against `@oh-my-pi/pi-coding-agent` `^16.1.16`
 
-The package ships its canonical spec in `spec/developer-attention-status.yml` so installed artifacts
-carry the same behavior contract as the repository.
+The package ships its canonical spec in `spec/project-time.yml` so installed artifacts carry the
+same behavior contract as the repository.
 
 ## Configure plugin settings
 
 Inspect current settings:
 
 ```bash
-omp plugin config list omp-developer-attention-status
+omp plugin config list omp-project-time
 ```
 
 Set a custom salary:
 
 ```bash
-omp plugin config set omp-developer-attention-status monthlySalary 9000
+omp plugin config set omp-project-time monthlySalary 9000
 ```
 
 Set custom working time assumptions:
 
 ```bash
-omp plugin config set omp-developer-attention-status hoursPerWeek 37.5
-omp plugin config set omp-developer-attention-status weeksPerYear 49
-omp plugin config set omp-developer-attention-status activeWindowMinutes 5
-omp plugin config set omp-developer-attention-status refreshIntervalSeconds 10
-omp plugin config set omp-developer-attention-status label dev
+omp plugin config set omp-project-time hoursPerWeek 37.5
+omp plugin config set omp-project-time weeksPerYear 49
+omp plugin config set omp-project-time activeWindowMinutes 5
+omp plugin config set omp-project-time refreshIntervalSeconds 10
+omp plugin config set omp-project-time label dev
 ```
 
 Setting changes are picked up on the next status refresh while a session is active. With the
@@ -213,11 +212,11 @@ rates, all of which are snapshotted when each record is written.
 
 Each mapped top-level prompt writes one five-minute attention token and records its AI interval
 until `turn_end` or shutdown. Records are local append-only files at
-`~/.omp/developer-attention-status/attention-tokens.ndjson` and
-`~/.omp/developer-attention-status/ai-intervals.ndjson`.
+`~/.omp/project-time/attention-tokens.ndjson` and
+`~/.omp/project-time/ai-intervals.ndjson`.
 
 When an interval first settles, the plugin records an explicit user session title or a bounded
-generated description in `~/.omp/developer-attention-status/session-descriptions.ndjson`. If OMP
+generated description in `~/.omp/project-time/session-descriptions.ndjson`. If OMP
 has no usable title model, it records `Unlabeled billable work` instead. It refreshes the
 description after compaction and at shutdown. Raw prompt text, transcripts, tool output, artifacts,
 and model metadata are never persisted.
@@ -225,23 +224,22 @@ and model metadata are never persisted.
 Configure it as one JSON string:
 
 ```bash
-omp plugin config set omp-developer-attention-status billableTime '{"repositories":{"github.com/icefoganalytics/wrap":"wrap"},"clients":{"wrap":{"label":"WRAP","currency":"CAD","attentionRatePerHour":"120","aiRatePerHour":"30"}}}'
+omp plugin config set omp-project-time billableTime '{"repositories":{"github.com/icefoganalytics/wrap":"wrap"},"clients":{"wrap":{"label":"WRAP","currency":"CAD","attentionRatePerHour":"120","aiRatePerHour":"30"}}}'
 ```
 
 ## Status command
 
 ```text
-/developer-cost-status
-/developer-cost-status summary
-/developer-cost-status billable
-/developer-cost-status billable preview
+/project-time
+/project-time summary
+/project-time billable
+/project-time billable preview
 ```
 
-The package name is `omp-developer-attention-status`; `/developer-cost-status` remains unchanged to
-preserve existing command usage and persisted session data. The default command shows the compact
-current meter total for the active top-level session. `summary` reports its session id, developer
-cost, active time, prompt count, and the last prompt's age and timestamp. It does not infer
-corrections, nudges, or outcomes.
+The package and command are named `omp-project-time` and `/project-time`. The default command shows
+the compact current meter total for the active top-level session. `summary` reports its session id,
+project time cost, active time, prompt count, and the last prompt's age and timestamp. It does not
+infer corrections, nudges, or outcomes.
 `billable` reports separately grouped attention-token and AI-interval units, durations, and
 snapshotted rates/currencies; its displayed amounts round only at the presentation boundary.
 `billable preview` emits local provider-neutral JSON entries with client attribution, source-specific
@@ -258,8 +256,8 @@ and stores a one-way repository identity hash so same-named repositories stay di
 The owner-only default artifacts are:
 
 ```text
-~/.omp/developer-attention-status/time-log.json
-~/.omp/developer-attention-status/time-log.json.summary.json
+~/.omp/project-time/time-log.json
+~/.omp/project-time/time-log.json.summary.json
 ```
 
 The raw ledger contains automatic intervals. The summary artifact is refreshed after every recorded
@@ -298,7 +296,7 @@ For public user-facing changes, use the GitHub feature issue and pull request te
 
 ## Troubleshooting
 
-- `omp plugin list` should show `omp-developer-attention-status`.
-- `omp plugin config list omp-developer-attention-status` should show the current settings.
+- `omp plugin list` should show `omp-project-time`.
+- `omp plugin config list omp-project-time` should show the current settings.
 - The status text is rendered by `ctx.ui.setStatus(...)`, so it appears on OMP's separate
   hook-status line rather than inline beside the built-in usage/cost segment.

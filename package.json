@@ -1,7 +1,7 @@
 {
-  "name": "omp-developer-attention-status",
-  "version": "1.2.1",
-  "description": "Developer attention cost status line plugin for OMP.",
+  "name": "omp-project-time",
+  "version": "2.0.0",
+  "description": "Project time and billable work plugin for OMP.",
   "type": "module",
   "license": "MIT",
   "files": [
@@ -26,16 +26,16 @@
     "oh-my-pi",
     "plugin",
     "statusline",
-    "developer-cost",
-    "developer-attention"
+    "project-time",
+    "billable-time"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/klondikemarlen/omp-developer-attention-status.git"
+    "url": "git+https://github.com/klondikemarlen/omp-project-time.git"
   },
-  "homepage": "https://github.com/klondikemarlen/omp-developer-attention-status#readme",
+  "homepage": "https://github.com/klondikemarlen/omp-project-time#readme",
   "bugs": {
-    "url": "https://github.com/klondikemarlen/omp-developer-attention-status/issues"
+    "url": "https://github.com/klondikemarlen/omp-project-time/issues"
   },
   "omp": {
     "extensions": [
@@ -46,25 +46,25 @@
         "type": "number",
         "default": 6500,
         "min": 1,
-        "description": "Monthly salary used for the developer cost meter."
+        "description": "Monthly salary used for the Project Time meter."
       },
       "hoursPerWeek": {
         "type": "number",
         "default": 40,
         "min": 1,
-        "description": "Working hours per week used for the developer cost meter."
+        "description": "Working hours per week used for the Project Time meter."
       },
       "weeksPerYear": {
         "type": "number",
         "default": 52,
         "min": 1,
-        "description": "Working weeks per year used for the developer cost meter."
+        "description": "Working weeks per year used for the Project Time meter."
       },
       "activeWindowMinutes": {
         "type": "number",
         "default": 5,
         "min": 1,
-        "description": "How long one prompt keeps the developer meter active."
+        "description": "How long one prompt keeps Project Time active."
       },
       "refreshIntervalSeconds": {
         "type": "number",

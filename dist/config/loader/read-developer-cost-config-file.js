@@ -9,7 +9,7 @@ export async function readDeveloperCostConfigFile(filePath) {
     if (isEnoent(error)) return undefined;
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `Unable to read developer cost config at ${filePath}: ${message}`,
+      `Unable to read Project Time config at ${filePath}: ${message}`,
     );
   }
 }

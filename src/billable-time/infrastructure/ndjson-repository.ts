@@ -29,7 +29,7 @@ export class BillableTimeRepository {
   private readonly aiPath: string
   private readonly descriptionPath: string
 
-  constructor(rootPath = path.join(homedir(), ".omp", "developer-attention-status")) {
+  constructor(rootPath = path.join(homedir(), ".omp", "project-time")) {
     this.attentionPath = path.join(rootPath, "attention-tokens.ndjson")
     this.aiPath = path.join(rootPath, "ai-intervals.ndjson")
     this.descriptionPath = path.join(rootPath, "session-descriptions.ndjson")

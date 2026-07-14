@@ -4,7 +4,7 @@ import {
   type DeveloperCostState,
 } from "@/billing/index.js"
 
-export const DEVELOPER_COST_STATE_ENTRY = "developer-cost-status.state"
+export const DEVELOPER_COST_STATE_ENTRY = "project-time.state"
 
 type SessionEntryLike = {
   type?: unknown
