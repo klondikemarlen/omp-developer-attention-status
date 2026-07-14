@@ -51,6 +51,7 @@ export class DeveloperCostStatusRuntime {
   private readonly ledger: SpreadBillingLedger
   private readonly timeLogRecorder: AutomaticTimeLogRecorder
   private readonly billableTimeRecorder: BillableTimeRecorder
+  private readonly generateTitle: ExtensionOptions["generateTitle"]
   private readonly billableSessionIds = new Set<string>()
   private readonly runtimeState: RuntimeState = {}
   private readonly sessionStates = new Map<string, DeveloperCostState>()
@@ -68,6 +69,7 @@ export class DeveloperCostStatusRuntime {
     this.ledger = new SpreadBillingLedger(options.ledgerPath)
     this.timeLogRecorder = new AutomaticTimeLogRecorder(options.timeLogPath)
     this.billableTimeRecorder = new BillableTimeRecorder(options.billableTimePath)
+    this.generateTitle = options.generateTitle
   }
 
   register(): void {
@@ -362,10 +364,11 @@ export class DeveloperCostStatusRuntime {
       modelRegistry: ctx.modelRegistry,
       settings: this.pi.pi?.settings,
       model: ctx.model,
+      generateTitle: this.generateTitle,
     }
     const description = await describeBillableSession(
       ctx.sessionManager.getHeader(),
-      ctx.sessionManager.getEntries(),
+      ctx.sessionManager.getBranch?.() ?? ctx.sessionManager.getEntries(),
       generationContext,
       currentSummary,
     )

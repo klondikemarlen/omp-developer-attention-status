@@ -18,6 +18,7 @@ export type SessionManagerLike = {
   getSessionId(): string
   getHeader(): SessionHeaderLike | null
   getEntries(): SessionEntryLike[]
+  getBranch?(): SessionEntryLike[]
 }
 
 export type ThemeLike = {
@@ -91,4 +92,5 @@ export type ExtensionOptions = {
   ledgerPath?: string
   timeLogPath?: string
   billableTimePath?: string
+  generateTitle?: (input: string) => Promise<string | null>
 }

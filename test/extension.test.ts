@@ -14,6 +14,7 @@ import {
   type DeveloperCostState,
 } from "../src/billing/index.js"
 import { SpreadBillingLedger } from "../src/billing/infrastructure/spread-ledger.js"
+import { descriptionInputFromSession } from "../src/billable-time/domain/description-context.js"
 import type { ConfigLoader } from "../src/extension/types.js"
 import { DeveloperCostStatusRuntime } from "../src/extension/runtime.js"
 import { DEVELOPER_COST_STATE_ENTRY } from "../src/extension/session-state.js"
@@ -137,6 +138,88 @@ test("stores local billable descriptions and previews provider-neutral entries",
         .split("\n")
         .map((line) => JSON.parse(line))
       assert.equal(refreshedDescriptions.length, 3)
+    } finally {
+      mock.restoreAll()
+    }
+  })
+})
+
+test("describes only the active session branch", async () => {
+  const startedAtMs = Date.UTC(2026, 0, 1, 12, 0, 0)
+  let nowMs = startedAtMs
+
+  await withGitRepository("https://github.com/Acme/Project.git", async (cwd) => {
+    const billableTimePath = path.join(cwd, "billable")
+    let generatedInput = ""
+    const runtime = createExtensionRuntime({
+      billableTimePath,
+      loadConfig: loadBillableRateConfig,
+      generateTitle: async (input) => {
+        generatedInput = input
+        return "Active project task"
+      },
+    })
+    const activeBranch = [{
+      type: "message",
+      message: { role: "user", content: "Implement active project task" },
+    }] as never as Runtime["entries"]
+    const allHistory = [
+      { type: "message", message: { role: "user", content: "Abandoned historical task" } },
+      ...activeBranch,
+    ] as never as Runtime["entries"]
+    const branchInput = descriptionInputFromSession(activeBranch as never)
+    const historyInput = descriptionInputFromSession(allHistory as never)
+    assert.match(branchInput, /Implement active project task/)
+    assert.doesNotMatch(branchInput, /Abandoned historical task/)
+    assert.match(historyInput, /Abandoned historical task/)
+    let branchRead = false
+    const context = createContext(runtime, {
+      cwd,
+      parentSession: undefined,
+      branchEntries: activeBranch,
+      allEntries: allHistory,
+      onBranchRead() {
+        branchRead = true
+      },
+    })
+    mock.method(Date, "now", () => nowMs)
+
+    try {
+      await runtime.handlers.get("before_agent_start")?.({ prompt: "prompt" } as never, context as never)
+      nowMs += 1_000
+      await runtime.handlers.get("turn_end")?.({ type: "turn_end" } as never, context as never)
+
+      assert.equal(branchRead, true)
+      assert.match(generatedInput, /Implement active project task/)
+      assert.doesNotMatch(generatedInput, /Abandoned historical task/)
+      const description = await readFile(path.join(billableTimePath, "session-descriptions.ndjson"), "utf8")
+      assert.match(description, /Active project task/)
+      assert.doesNotMatch(description, /Abandoned historical task/)
+    } finally {
+      mock.restoreAll()
+    }
+  })
+})
+
+test("falls back to session history when branches are unavailable", async () => {
+  const startedAtMs = Date.UTC(2026, 0, 1, 12, 0, 0)
+  let nowMs = startedAtMs
+
+  await withGitRepository("https://github.com/Acme/Project.git", async (cwd) => {
+    const billableTimePath = path.join(cwd, "billable")
+    const runtime = createExtensionRuntime({ billableTimePath, loadConfig: loadBillableRateConfig })
+    const context = createContext(runtime, { cwd, parentSession: undefined })
+    delete (context.sessionManager as { getBranch?: unknown }).getBranch
+    mock.method(Date, "now", () => nowMs)
+
+    try {
+      await runtime.handlers.get("before_agent_start")?.({ prompt: "prompt" } as never, context as never)
+      nowMs += 1_000
+      await runtime.handlers.get("turn_end")?.({ type: "turn_end" } as never, context as never)
+
+      const description = await readFile(path.join(billableTimePath, "session-descriptions.ndjson"), "utf8")
+      assert.match(description, /Unlabeled billable work/)
+      assert.doesNotMatch(JSON.stringify(runtime.notifications), /Billable time error/)
     } finally {
       mock.restoreAll()
     }
@@ -1036,6 +1119,7 @@ type RuntimeOptions = {
   billableTimePath?: string
   loadConfig?: ConfigLoader
   timeLogPath?: string
+  generateTitle?: (input: string) => Promise<string | null>
 }
 
 function createExtensionRuntime(options: RuntimeOptions = {}): Runtime {
@@ -1062,6 +1146,7 @@ function createExtensionRuntime(options: RuntimeOptions = {}): Runtime {
     loadConfig: options.loadConfig ?? (async () => parseDeveloperCostConfig()),
     timeLogPath: options.timeLogPath ?? temporaryLedgerPath(),
     billableTimePath: options.billableTimePath ?? temporaryLedgerPath(),
+    generateTitle: options.generateTitle,
   })
 
   return runtime
@@ -1135,6 +1220,7 @@ function createContext(
     sessionId?: string
     cwd?: string
     onNotification?: () => void
+    onBranchRead?: () => void
   },
 ) {
   return {
@@ -1149,6 +1235,7 @@ function createContext(
         }
       },
       getBranch() {
+        options.onBranchRead?.()
         return options.branchEntries ?? runtime.entries
       },
       getEntries() {
