@@ -192,8 +192,8 @@ restart after changing plugin code or install state.
 ### Billable clocks
 
 Set `billableTime` to a repository-to-client map. Repository keys use normalized
-`github.com/owner/repository` form; rates are positive decimal strings and are snapshotted when
-each record is written.
+`github.com/owner/repository` form; clients use an ISO 4217 currency code and positive decimal
+rates, all of which are snapshotted when each record is written.
 
 ```json
 {
@@ -235,8 +235,8 @@ preserve existing command usage and persisted session data. The default command 
 current meter total for the active top-level session. `summary` reports its session id, developer
 cost, active time, prompt count, and the last prompt's age and timestamp. It does not infer
 corrections, nudges, or outcomes.
-`billable` reports separately grouped attention-token and AI-interval units, durations, snapshotted
-rates, currencies, and amounts.
+`billable` reports separately grouped attention-token and AI-interval units, durations, and
+snapshotted rates/currencies; its displayed amounts round only at the presentation boundary.
 
 ## Local project time log
 

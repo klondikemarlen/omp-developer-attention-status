@@ -1,134 +1,84 @@
-import Big from "@/vendor/big.js"
-import { isFiniteNumber } from "@/utils/is-finite-number.js"
-import { parseDecimalString } from "@/utils/parse-decimal-string.js"
-import { parseNonEmptyString } from "@/utils/parse-non-empty-string.js"
+import { positiveRateSchema, type PositiveRate } from "@/billable-time/domain/rate.js"
+import { currencySchema } from "@/billable-time/domain/currency.js"
+import { z } from "@/vendor/zod.js"
 
-export type AttentionTokenRecord = {
-  emittedAtMs: number
-  sessionId: string
-  clientId: string
-  clientLabel: string
-  repository: string
-  sourceKind: "attention"
-  durationMs: number
-  ratePerHour: string
-  currency: string
-}
+const commonSchema = z.object({
+  sessionId: z.string().min(1),
+  clientId: z.string().min(1),
+  clientLabel: z.string().min(1),
+  repository: z.string().min(1),
+  ratePerHour: positiveRateSchema,
+  currency: currencySchema,
+})
+const attentionTokenSchema = commonSchema.extend({
+  emittedAtMs: z.number().finite(),
+  sourceKind: z.literal("attention"),
+  durationMs: z.literal(300_000),
+})
+const aiIntervalSchema = commonSchema.extend({
+  startedAtMs: z.number().finite(),
+  endedAtMs: z.number().finite(),
+  sourceKind: z.literal("ai"),
+  durationMs: z.number().finite().nonnegative(),
+  terminalReason: z.enum(["turn_end", "shutdown", "superseded"]),
+}).refine((record) => record.durationMs === record.endedAtMs - record.startedAtMs, "duration must match timestamps")
 
-export type AiIntervalRecord = {
-  startedAtMs: number
-  endedAtMs: number
-  sessionId: string
-  clientId: string
-  clientLabel: string
-  repository: string
-  sourceKind: "ai"
-  durationMs: number
-  terminalReason: "turn_end" | "shutdown" | "superseded"
-  ratePerHour: string
-  currency: string
-}
-
+export type AttentionTokenRecord = z.infer<typeof attentionTokenSchema>
+export type AiIntervalRecord = z.infer<typeof aiIntervalSchema>
 export type BillableRecord = AttentionTokenRecord | AiIntervalRecord
 
-export function parseAttentionTokenRecord(value: unknown): AttentionTokenRecord | undefined {
-  if (!isRecord(value)) return undefined
+export type BillableAttribution = Pick<
+  AttentionTokenRecord,
+  "sessionId" | "clientId" | "clientLabel" | "repository" | "currency"
+>
+export type PendingAiInterval = Omit<AiIntervalRecord, "endedAtMs" | "durationMs" | "terminalReason">
 
-  const emittedAtMs = value.emittedAtMs
-  const sessionId = parseNonEmptyString(value.sessionId)
-  const clientId = parseNonEmptyString(value.clientId)
-  const clientLabel = parseNonEmptyString(value.clientLabel)
-  const repository = parseNonEmptyString(value.repository)
-  const sourceKind = value.sourceKind
-  const durationMs = value.durationMs
-  const ratePerHour = parseRate(value.ratePerHour)
-  const currency = parseCurrency(value.currency)
-
-  if (
-    !isFiniteNumber(emittedAtMs) ||
-    sessionId === undefined ||
-    clientId === undefined ||
-    clientLabel === undefined ||
-    repository === undefined ||
-    sourceKind !== "attention" ||
-    durationMs !== 300_000 ||
-    ratePerHour === undefined ||
-    currency === undefined
-  ) {
-    return undefined
-  }
-
-  return {
+export function createAttentionToken(
+  attribution: BillableAttribution,
+  emittedAtMs: number,
+  ratePerHour: PositiveRate,
+): AttentionTokenRecord {
+  return attentionTokenSchema.parse({
+    ...attribution,
     emittedAtMs,
-    sessionId,
-    clientId,
-    clientLabel,
-    repository,
-    sourceKind,
-    durationMs,
+    sourceKind: "attention",
+    durationMs: 300_000,
     ratePerHour,
-    currency,
+  })
+}
+
+export function startAiInterval(
+  attribution: BillableAttribution,
+  startedAtMs: number,
+  ratePerHour: PositiveRate,
+): PendingAiInterval {
+  return {
+    ...attribution,
+    startedAtMs,
+    sourceKind: "ai",
+    ratePerHour,
   }
+}
+
+export function parseAttentionTokenRecord(value: unknown): AttentionTokenRecord | undefined {
+  return attentionTokenSchema.safeParse(value).data
 }
 
 export function parseAiIntervalRecord(value: unknown): AiIntervalRecord | undefined {
-  if (!isRecord(value)) return undefined
+  return aiIntervalSchema.safeParse(value).data
+}
 
-  const startedAtMs = value.startedAtMs
-  const endedAtMs = value.endedAtMs
-  const sessionId = parseNonEmptyString(value.sessionId)
-  const clientId = parseNonEmptyString(value.clientId)
-  const clientLabel = parseNonEmptyString(value.clientLabel)
-  const repository = parseNonEmptyString(value.repository)
-  const sourceKind = value.sourceKind
-  const durationMs = value.durationMs
-  const terminalReason = value.terminalReason
-  const ratePerHour = parseRate(value.ratePerHour)
-  const currency = parseCurrency(value.currency)
+export function closeAiInterval(
+  pending: PendingAiInterval,
+  endedAtMs: number,
+  terminalReason: AiIntervalRecord["terminalReason"],
+): AiIntervalRecord {
+  const settledAtMs = Math.max(endedAtMs, pending.startedAtMs)
 
-  if (
-    !isFiniteNumber(startedAtMs) ||
-    !isFiniteNumber(endedAtMs) ||
-    startedAtMs > endedAtMs ||
-    sessionId === undefined ||
-    clientId === undefined ||
-    clientLabel === undefined ||
-    repository === undefined ||
-    sourceKind !== "ai" ||
-    !isFiniteNumber(durationMs) ||
-    durationMs !== endedAtMs - startedAtMs ||
-    (terminalReason !== "turn_end" && terminalReason !== "shutdown" && terminalReason !== "superseded") ||
-    ratePerHour === undefined ||
-    currency === undefined
-  ) {
-    return undefined
-  }
-
-  return {
-    startedAtMs,
-    endedAtMs,
-    sessionId,
-    clientId,
-    clientLabel,
-    repository,
-    sourceKind,
-    durationMs,
+  return aiIntervalSchema.parse({
+    ...pending,
+    endedAtMs: settledAtMs,
+    durationMs: settledAtMs - pending.startedAtMs,
     terminalReason,
-    ratePerHour,
-    currency,
-  }
-}
-
-function parseRate(value: unknown): string | undefined {
-  const rate = parseDecimalString(value)
-  return rate !== undefined && Big(rate).gt(0) ? rate : undefined
-}
-
-function parseCurrency(value: unknown): string | undefined {
-  const currency = parseNonEmptyString(value)?.toUpperCase()
-  return currency !== undefined && /^[A-Z]{3}$/.test(currency) ? currency : undefined
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
+  })
 }

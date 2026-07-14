@@ -1,4 +1,5 @@
 import { BillableTimeRecorder } from "@/billable-time/recorder.js"
+import { billableSummaryText } from "@/billable-time/presentation.js"
 
 import {
   parseDeveloperCostConfig,
@@ -98,22 +99,17 @@ export class DeveloperCostStatusRuntime {
       return
     }
 
-    const config = await this.loadConfigForStatus(ctx)
-    if (config === undefined) return
     if (args.trim() === "billable") {
       try {
         const summaries = await this.billableTimeRecorder.summaries()
-        const message = summaries.length === 0
-          ? "No billable time recorded."
-          : summaries.map((summary) =>
-            `${summary.clientLabel}: ${summary.sourceKind} ${summary.count} units, ${summary.durationMs}ms @ ${summary.ratePerHour} ${summary.currency}/h = ${summary.amount} ${summary.currency}`,
-          ).join("\n")
-        ctx.ui.notify(message, "info")
+        ctx.ui.notify(billableSummaryText(summaries), "info")
       } catch (error) {
         ctx.ui.notify(`Billable time error: ${errorMessage(error)}`, "error")
       }
       return
     }
+    const config = await this.loadConfigForStatus(ctx)
+    if (config === undefined) return
     const sessionId = ctx.sessionManager.getSessionId()
 
     const state = this.stateForSession(ctx, sessionId)
@@ -163,17 +159,17 @@ export class DeveloperCostStatusRuntime {
     const currentState = this.stateForSession(ctx, sessionId)
     const stateBeforePrompt = { ...currentState }
     const promptAtMs = Date.now()
+    try {
+      await this.billableTimeRecorder.recordPrompt(sessionId, ctx.cwd, promptAtMs, config.billableTime)
+    } catch (error) {
+      ctx.ui.notify(`Billable time error: ${errorMessage(error)}`, "error")
+    }
     const nextState = await this.ledger.recordPrompt(
       sessionId,
       currentState,
       promptAtMs,
       config,
     )
-    try {
-      await this.billableTimeRecorder.recordPrompt(sessionId, ctx.cwd, promptAtMs, config.billableTime)
-    } catch (error) {
-      ctx.ui.notify(`Billable time error: ${errorMessage(error)}`, "error")
-    }
     this.recordTimeLogSettlement(ctx, sessionId, stateBeforePrompt, nextState, promptAtMs)
     this.timeLogRecorder.recordPromptStart(sessionId, ctx.cwd, promptAtMs)
 
@@ -187,12 +183,20 @@ export class DeveloperCostStatusRuntime {
   private async settleCurrentTurn(ctx: ExtensionContext, closeBillableInterval = true): Promise<void> {
     if (!isTopLevelSession(ctx.sessionManager)) return
 
+    const sessionId = ctx.sessionManager.getSessionId()
+    if (closeBillableInterval) {
+      try {
+        await this.billableTimeRecorder.recordTurnEnd(sessionId, Date.now())
+      } catch (error) {
+        ctx.ui.notify(`Billable time error: ${errorMessage(error)}`, "error")
+      }
+    }
+
     const config = await this.loadConfigForStatus(ctx)
     if (config === undefined) {
       this.clearActiveStatus(ctx)
       return
     }
-    const sessionId = ctx.sessionManager.getSessionId()
     const currentState = this.stateForSession(ctx, sessionId)
     const settledState = await this.settleAndRecord(
       ctx,
@@ -202,13 +206,6 @@ export class DeveloperCostStatusRuntime {
       config,
     )
 
-    if (closeBillableInterval) {
-      try {
-        await this.billableTimeRecorder.recordTurnEnd(sessionId, Date.now())
-      } catch (error) {
-        ctx.ui.notify(`Billable time error: ${errorMessage(error)}`, "error")
-      }
-    }
     this.sessionStates.set(sessionId, settledState)
     this.pi.appendEntry(DEVELOPER_COST_STATE_ENTRY, settledState)
     this.rememberActiveSession(ctx, sessionId, settledState)
@@ -216,15 +213,15 @@ export class DeveloperCostStatusRuntime {
   }
 
   private async shutdownSession(ctx: ExtensionContext): Promise<void> {
-    if (isTopLevelSession(ctx.sessionManager)) {
-      await this.settleCurrentTurn(ctx, false)
-    }
-
     const sessionId = ctx.sessionManager.getSessionId()
     try {
       await this.billableTimeRecorder.recordShutdown(sessionId, Date.now())
     } catch (error) {
       ctx.ui.notify(`Billable time error: ${errorMessage(error)}`, "error")
+    }
+
+    if (isTopLevelSession(ctx.sessionManager)) {
+      await this.settleCurrentTurn(ctx, false)
     }
     await this.timeLogRecorder.flush(
       sessionId,

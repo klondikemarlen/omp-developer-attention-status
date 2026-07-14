@@ -50,6 +50,14 @@ requirements:
     title: Time log privacy boundary
     requirement: Resolve Git repository identity transiently, persist only a sanitized project label and one-way repository hash, and do not persist working-directory paths, raw remote URLs, credentials, prompts, assignments, transcripts, tool output, artifacts, session files, or model metadata.
     rationale: Automatic attribution must not turn local source-control metadata into sensitive activity logging.
+  - id: billable_clocks
+    title: Separate billable attention and AI clocks
+    requirement: For a configured GitHub repository-client mapping, record one fixed five-minute human-attention token and one exact AI interval for each top-level prompt. Store rate and ISO 4217 currency snapshots in separate append-only ledgers, derive totals with decimal arithmetic, and round only when presenting a summary.
+    rationale: Human attention and AI runtime are separate billable observations with different rates; later policy changes must not rewrite history.
+  - id: billable_clock_privacy
+    title: Billable clock privacy boundary
+    requirement: Do not persist raw prompt text, transcripts, tool output, artifacts, model metadata, or credentials in billable records.
+    rationale: Billing records need only attribution, timing, and snapshotted policy data.
 non_requirements:
   - id: no_model_cost_replacement
     description: This plugin does not replace OMP model/tool usage cost; it adds developer-time cost.

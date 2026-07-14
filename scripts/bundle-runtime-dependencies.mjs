@@ -21,4 +21,12 @@ await Promise.all([
     outfile: `${vendorDirectory}/proper-lockfile.js`,
     platform: "node",
   }),
+  build({
+    allowOverwrite: true,
+    bundle: true,
+    entryPoints: [`${vendorDirectory}/zod.js`],
+    format: "esm",
+    outfile: `${vendorDirectory}/zod.js`,
+    platform: "node",
+  }),
 ])

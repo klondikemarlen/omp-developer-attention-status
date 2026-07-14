@@ -1,83 +1,46 @@
-import Big from "@/vendor/big.js"
+import { positiveRateSchema } from "@/billable-time/domain/rate.js"
+import { currencyInputSchema } from "@/billable-time/domain/currency.js"
+import { normalizeBillableRepository } from "@/billable-time/domain/repository.js"
+import { z } from "@/vendor/zod.js"
 
-import { parseDecimalString } from "@/utils/parse-decimal-string.js"
-import { parseNonEmptyString } from "@/utils/parse-non-empty-string.js"
+const clientSchema = z.object({
+  label: z.string().trim().min(1),
+  currency: currencyInputSchema,
+  attentionRatePerHour: positiveRateSchema,
+  aiRatePerHour: positiveRateSchema,
+})
+const settingsSchema = z.object({
+  clients: z.record(z.string(), clientSchema),
+  repositories: z.record(z.string(), z.string().trim().min(1)),
+})
 
-export type BillableClient = {
-  id: string
-  label: string
-  currency: string
-  attentionRatePerHour: string
-  aiRatePerHour: string
-}
-
-export type BillableTimeConfig = {
-  clientsByRepository: ReadonlyMap<string, BillableClient>
-}
+export type BillableClient = z.infer<typeof clientSchema> & { id: string }
+export type BillableTimeConfig = { clientsByRepository: ReadonlyMap<string, BillableClient> }
 
 export function parseBillableTimeConfig(value: unknown): BillableTimeConfig {
-  const parsedValue = parseBillableTimeJson(value)
-  if (parsedValue === undefined || Object.keys(parsedValue).length === 0) {
-    return { clientsByRepository: new Map() }
-  }
-  if (!isRecord(parsedValue.clients) || !isRecord(parsedValue.repositories)) {
-    throw new Error("Billable time config requires clients and repositories objects.")
-  }
+  const settings = parseSettings(value)
+  if (settings === undefined) return { clientsByRepository: new Map() }
 
   const clients = new Map<string, BillableClient>()
-  for (const [id, rawClient] of Object.entries(parsedValue.clients)) {
-    const client = parseClient(id, rawClient)
-    if (client === undefined) throw new Error(`Invalid billable client: ${id}.`)
-    clients.set(id, client)
+  for (const [id, client] of Object.entries(settings.clients)) {
+    clients.set(id, { id, ...client })
   }
 
   const clientsByRepository = new Map<string, BillableClient>()
-  for (const [repository, rawClientId] of Object.entries(parsedValue.repositories)) {
-    const normalizedRepository = normalizeRepository(repository)
-    const clientId = parseNonEmptyString(rawClientId)
-    const client = clientId === undefined ? undefined : clients.get(clientId)
-    if (normalizedRepository === undefined || client === undefined) {
-      throw new Error(`Invalid billable repository mapping: ${repository}.`)
-    }
-    clientsByRepository.set(normalizedRepository, client)
+  for (const [repository, clientId] of Object.entries(settings.repositories)) {
+    const client = clients.get(clientId)
+    if (client === undefined) throw new Error(`Unknown billable client: ${clientId}.`)
+    clientsByRepository.set(normalizeBillableRepository(repository), client)
   }
 
   return { clientsByRepository }
 }
 
-function parseBillableTimeJson(value: unknown): Record<string, unknown> | undefined {
-  if (value === undefined) return undefined
-  if (typeof value !== "string") return isRecord(value) ? value : undefined
-  try {
-    const parsedValue = JSON.parse(value)
-    if (!isRecord(parsedValue)) throw new Error("Billable time config must be a JSON object.")
-    return parsedValue
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : "invalid JSON"
-    throw new Error(`Invalid billable time config: ${detail}`)
-  }
+function parseSettings(value: unknown): z.infer<typeof settingsSchema> | undefined {
+  if (value === undefined || value === "{}") return undefined
+  const parsedValue = typeof value === "string" ? JSON.parse(value) : value
+  return settingsSchema.parse(parsedValue)
 }
 
-function parseClient(id: string, value: unknown): BillableClient | undefined {
-  if (!isRecord(value)) return undefined
-  const label = parseNonEmptyString(value.label)
-  const currency = parseNonEmptyString(value.currency)?.toUpperCase()
-  const attentionRatePerHour = parseDecimalString(value.attentionRatePerHour)
-  const aiRatePerHour = parseDecimalString(value.aiRatePerHour)
-  const validCurrency = currency !== undefined && /^[A-Z]{3}$/.test(currency)
-  const validAttentionRate = attentionRatePerHour !== undefined && Big(attentionRatePerHour).gt(0)
-  const validAiRate = aiRatePerHour !== undefined && Big(aiRatePerHour).gt(0)
-  if (label === undefined || !validCurrency || !validAttentionRate || !validAiRate) return undefined
-  return { id, label, currency, attentionRatePerHour, aiRatePerHour }
-}
-
-function normalizeRepository(value: string): string | undefined {
-  const repository = parseNonEmptyString(value)
-  return repository?.replace(/\.git$/i, "").toLowerCase()
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-}
 
 export default parseBillableTimeConfig

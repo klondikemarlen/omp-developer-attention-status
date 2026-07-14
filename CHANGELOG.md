@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Record separate, client-attributed five-minute attention tokens and exact AI intervals in local billable ledgers.
+- Add `/developer-cost-status billable` summaries with independent rate and currency snapshots.
+
+### Changed
+
+- Validate ISO 4217 currencies, preserve complete records after interrupted appends, and round billable amounts only for display.
+
 ## [1.0.6] - 2026-07-13
 
 ### Fixed

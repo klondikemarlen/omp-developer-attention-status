@@ -1,4 +1,4 @@
-import Big from "@/vendor/big.js"
+import { amountForDuration } from "@/billable-time/domain/rate.js"
 import type { BillableRecord } from "@/billable-time/domain/record.js"
 
 export type BillableSummary = {
@@ -27,7 +27,7 @@ export function summarizeBillableRecords(records: readonly BillableRecord[]): Bi
         sourceKind: record.sourceKind,
         count: 1,
         durationMs: record.durationMs,
-        amount: amountFor(record.ratePerHour, record.durationMs),
+        amount: amountForDuration(record.ratePerHour, record.durationMs),
       })
       continue
     }
@@ -37,15 +37,12 @@ export function summarizeBillableRecords(records: readonly BillableRecord[]): Bi
       ...existing,
       count: existing.count + 1,
       durationMs,
-      amount: amountFor(existing.ratePerHour, durationMs),
+      amount: amountForDuration(existing.ratePerHour, durationMs),
     })
   }
 
   return [...summaries.values()]
 }
 
-function amountFor(ratePerHour: string, durationMs: number): string {
-  return Big(ratePerHour).times(durationMs).div(60 * 60 * 1000).toString()
-}
 
 export default summarizeBillableRecords

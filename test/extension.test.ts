@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { execFile } from "node:child_process"
 import { randomUUID } from "node:crypto"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { promisify } from "node:util"
@@ -61,6 +61,42 @@ test("persists one attention count for a top-level prompt", async () => {
   } finally {
     mock.restoreAll()
   }
+})
+
+test("records billable clocks only for mapped top-level sessions", async () => {
+  const start = Date.UTC(2026, 0, 1, 12, 0, 0)
+  let nowMs = start
+
+  await withGitRepository("https://github.com/Acme/Project.git", async (cwd) => {
+    const billableTimePath = path.join(cwd, "billable")
+    const runtime = createExtensionRuntime({ billableTimePath, loadConfig: loadBillableRateConfig })
+    const topLevelContext = createContext(runtime, { cwd, parentSession: undefined })
+    const childContext = createContext(runtime, { cwd, parentSession: "/tmp/parent.jsonl", sessionId: "child" })
+    mock.method(Date, "now", () => nowMs)
+
+    try {
+      await runtime.handlers.get("before_agent_start")?.({ prompt: "top secret prompt" } as never, topLevelContext as never)
+      nowMs += 1_000
+      await runtime.handlers.get("turn_end")?.({ type: "turn_end" } as never, topLevelContext as never)
+      await runtime.handlers.get("before_agent_start")?.({ prompt: "child prompt" } as never, childContext as never)
+      nowMs += 60_000
+      await runtime.handlers.get("turn_end")?.({ type: "turn_end" } as never, childContext as never)
+
+      const attention = JSON.parse(await readFile(path.join(billableTimePath, "attention-tokens.ndjson"), "utf8"))
+      const interval = JSON.parse(await readFile(path.join(billableTimePath, "ai-intervals.ndjson"), "utf8"))
+
+      assert.equal(attention.durationMs, 300_000)
+      assert.equal(interval.durationMs, 1_000)
+      assert.doesNotMatch(JSON.stringify({ attention, interval }), /top secret prompt|child prompt/)
+      await runtime.commands.get("developer-cost-status")?.handler("billable", topLevelContext as never)
+      assert.deepEqual(runtime.notifications.at(-1), {
+        message: "Acme: attention 1 units, 300000ms @ 120 USD/h = 10.00 USD\nAcme: ai 1 units, 1000ms @ 30 USD/h = 0.01 USD",
+        type: "info",
+      })
+    } finally {
+      mock.restoreAll()
+    }
+  })
 })
 
 test("converts configured refresh seconds to milliseconds", () => {
@@ -554,6 +590,41 @@ test("reports child sessions from the status command", async () => {
   ])
 })
 
+test("shows snapshotted billable time when current config cannot load", async () => {
+  const billableTimePath = await mkdtemp(path.join(tmpdir(), "billable-time-"))
+  const attentionPath = path.join(billableTimePath, "attention-tokens.ndjson")
+
+  try {
+    await writeFile(attentionPath, `${JSON.stringify({
+      emittedAtMs: 0,
+      sessionId: "session",
+      clientId: "icefog",
+      clientLabel: "Icefog",
+      repository: "github.com/icefoganalytics/wrap",
+      sourceKind: "attention",
+      durationMs: 300_000,
+      ratePerHour: "120",
+      currency: "CAD",
+    })}\n`)
+    const runtime = createExtensionRuntime({
+      billableTimePath,
+      loadConfig: async () => {
+        throw new Error("broken config")
+      },
+    })
+    const ctx = createContext(runtime, { parentSession: undefined })
+
+    await runtime.commands.get("developer-cost-status")?.handler("billable", ctx as never)
+
+    assert.deepEqual(runtime.notifications, [{
+      message: "Icefog: attention 1 units, 300000ms @ 120 CAD/h = 10.00 CAD",
+      type: "info",
+    }])
+  } finally {
+    await rm(billableTimePath, { recursive: true, force: true })
+  }
+})
+
 test("reports config errors from the status command", async () => {
   const runtime = createExtensionRuntime({
     loadConfig: async () => {
@@ -887,6 +958,7 @@ test("keeps delayed same-session prompt timestamps monotonic in the shared ledge
 
 type RuntimeOptions = {
   ledgerPath?: string
+  billableTimePath?: string
   loadConfig?: ConfigLoader
   timeLogPath?: string
 }
@@ -914,6 +986,7 @@ function createExtensionRuntime(options: RuntimeOptions = {}): Runtime {
     ledgerPath: options.ledgerPath ?? temporaryLedgerPath(),
     loadConfig: options.loadConfig ?? (async () => parseDeveloperCostConfig()),
     timeLogPath: options.timeLogPath ?? temporaryLedgerPath(),
+    billableTimePath: options.billableTimePath ?? temporaryLedgerPath(),
   })
 
   return runtime
@@ -948,6 +1021,24 @@ async function loadFullRateConfig() {
     weeksPerYear: 52,
     activeWindowMinutes: 5,
     refreshIntervalSeconds: 60,
+  })
+}
+
+async function loadBillableRateConfig() {
+  return parseDeveloperCostConfig({
+    billableTime: {
+      clients: {
+        acme: {
+          label: "Acme",
+          currency: "USD",
+          attentionRatePerHour: "120",
+          aiRatePerHour: "30",
+        },
+      },
+      repositories: {
+        "github.com/acme/project": "acme",
+      },
+    },
   })
 }
 
