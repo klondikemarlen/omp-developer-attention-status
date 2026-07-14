@@ -1,6 +1,6 @@
 {
   "name": "omp-developer-attention-status",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Developer attention cost status line plugin for OMP.",
   "type": "module",
   "license": "MIT",
