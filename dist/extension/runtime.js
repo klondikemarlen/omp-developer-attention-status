@@ -33,6 +33,8 @@ export class DeveloperCostStatusRuntime {
 
   billableTimeRecorder;
 
+  generateTitle;
+
   billableSessionIds = new Set();
 
   runtimeState = {};
@@ -54,6 +56,7 @@ export class DeveloperCostStatusRuntime {
     this.billableTimeRecorder = new BillableTimeRecorder(
       options.billableTimePath,
     );
+    this.generateTitle = options.generateTitle;
   }
 
   register() {
@@ -349,10 +352,11 @@ export class DeveloperCostStatusRuntime {
       modelRegistry: ctx.modelRegistry,
       settings: this.pi.pi?.settings,
       model: ctx.model,
+      generateTitle: this.generateTitle,
     };
     const description = await describeBillableSession(
       ctx.sessionManager.getHeader(),
-      ctx.sessionManager.getEntries(),
+      ctx.sessionManager.getBranch?.() ?? ctx.sessionManager.getEntries(),
       generationContext,
       currentSummary,
     );
