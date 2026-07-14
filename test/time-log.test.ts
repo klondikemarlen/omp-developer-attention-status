@@ -3,6 +3,8 @@ import { mkdtemp, readFile, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import test from "node:test"
+import Big from "big.js"
+
 
 import { TimeLogLedger } from "../src/time-log/infrastructure/ledger.js"
 import type { TimeLogEntry } from "../src/time-log/domain/model.js"
@@ -39,7 +41,7 @@ test("limits automatic intervals to the settled attention duration", () => {
     sessionId: "session-a",
     sourceStartedAtMs: 0,
     stateBeforeSettlement: {
-      totalCost: "0",
+      totalCost: Big(0),
       promptCount: 1,
       activeMilliseconds: 0,
       activeStartAtMs: 0,
@@ -48,7 +50,7 @@ test("limits automatic intervals to the settled attention duration", () => {
       lastPromptAtMs: 0,
     },
     settledState: {
-      totalCost: "0",
+      totalCost: Big(0),
       promptCount: 1,
       activeMilliseconds: minute,
       activeStartAtMs: 0,

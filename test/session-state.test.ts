@@ -6,7 +6,7 @@ import { loadPersistedDeveloperCostState } from "../src/extension/session-state.
 test("returns an empty state when no persisted entry exists", () => {
   const state = loadPersistedDeveloperCostState([])
 
-  assert.equal(state.totalCost, "0")
+  assert.equal(state.totalCost.toString(), "0")
 })
 
 test("defaults attention metrics for a legacy persisted cost entry", () => {
@@ -18,7 +18,7 @@ test("defaults attention metrics for a legacy persisted cost entry", () => {
     },
   ])
 
-  assert.equal(state.totalCost, "12.34")
+  assert.equal(state.totalCost.toString(), "12.34")
   assert.equal(state.promptCount, 0)
   assert.equal(state.activeMilliseconds, 0)
 })
@@ -46,7 +46,7 @@ test("loads the latest persisted developer cost entry", () => {
     },
   ])
 
-  assert.equal(state.totalCost, "4.56")
+  assert.equal(state.totalCost.toString(), "4.56")
   assert.equal(state.promptCount, 7)
   assert.equal(state.activeMilliseconds, 890)
   assert.equal(state.activeStartAtMs, 1)
@@ -65,5 +65,5 @@ test("ignores invalid persisted state", () => {
     },
   ])
 
-  assert.equal(state.totalCost, "0")
+  assert.equal(state.totalCost.toString(), "0")
 })

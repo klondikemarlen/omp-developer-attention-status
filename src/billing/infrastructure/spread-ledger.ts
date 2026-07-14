@@ -3,9 +3,9 @@ import { homedir } from "node:os"
 import path from "node:path"
 import { lock } from "@/vendor/proper-lockfile.js"
 
-import { parseDeveloperCostState } from "@/billing/state/parser.js"
-import { recordDeveloperPrompt } from "@/billing/operations/record-prompt.js"
-import { settleSpreadDeveloperCostStates } from "@/billing/operations/settle-shared-state.js"
+import { parseStoredDeveloperCostConfig } from "@/billing/config/parser.js"
+import { parseDeveloperCostState, serializeDeveloperCostState } from "@/billing/state/parser.js"
+import { updateSpreadDeveloperCostStates } from "@/billing/operations/settle-shared-state.js"
 import type { DeveloperCostConfig } from "@/billing/config/model.js"
 import type { DeveloperCostState } from "@/billing/state/model.js"
 
@@ -60,60 +60,30 @@ export class SpreadBillingLedger {
   ): Promise<DeveloperCostState> {
     return this.withLock(async () => {
       const ledger = await this.readLedger()
-      const settlementAtMs = Math.max(nowMs, ledger.settledThroughMs)
-      const existingSession = ledger.sessions.get(sessionId)
-      const currentState = existingSession?.state ?? { ...state }
-
-      if (
-        existingSession === undefined &&
-        currentState.activeStartAtMs !== undefined &&
-        currentState.activeUntilMs !== undefined
-      ) {
-        const settledFromMs = currentState.lastSettledAtMs ?? currentState.activeStartAtMs
-        currentState.lastSettledAtMs = Math.max(settledFromMs, ledger.settledThroughMs)
-      }
-
-      ledger.sessions.set(sessionId, {
-        state: currentState,
-        config,
-      })
-
-      const settledSessions = settleSpreadDeveloperCostStates(
+      const update = updateSpreadDeveloperCostStates(
         [...ledger.sessions].map(([id, entry]) => ({
           sessionId: id,
           state: entry.state,
           config: entry.config,
         })),
-        settlementAtMs,
+        ledger.settledThroughMs,
+        sessionId,
+        state,
+        nowMs,
+        config,
+        updateKind === "prompt",
       )
-      ledger.sessions.clear()
-      for (const settledSession of settledSessions) {
-        ledger.sessions.set(settledSession.sessionId, {
-          state: settledSession.state,
-          config: settledSession.config,
-        })
-      }
-      ledger.settledThroughMs = settlementAtMs
-
-      const settledSession = ledger.sessions.get(sessionId)
-      if (settledSession === undefined) {
-        throw new Error(`Project Time cannot settle session ${sessionId}.`)
-      }
-
-      let nextState = settledSession.state
-      if (updateKind === "prompt") {
-        nextState = recordDeveloperPrompt(settledSession.state, settlementAtMs, config)
-        nextState.lastPromptAtMs = Math.max(
-          nowMs,
-          settledSession.state.lastPromptAtMs ?? nowMs,
-        )
-      }
-      ledger.sessions.set(sessionId, { state: nextState, config })
+      ledger.sessions = new Map(update.sessions.map((session) => [
+        session.sessionId,
+        { state: session.state, config: session.config },
+      ]))
+      ledger.settledThroughMs = update.settledThroughMs
 
       // ponytail: ledger grows with historical sessions; add persisted acknowledgements before pruning.
       await this.writeLedger(ledger)
 
-      return nextState
+      return update.state
+
     })
   }
 
@@ -192,21 +162,18 @@ export class SpreadBillingLedger {
         typeof entry !== "object" ||
         entry === null ||
         !("state" in entry) ||
-        !("config" in entry) ||
-        !isStoredConfig(entry.config)
+        !("config" in entry)
       ) {
         throw new Error("Project Time shared billing state is invalid.")
       }
 
+      const config = parseStoredDeveloperCostConfig(entry.config)
       const state = parseDeveloperCostState(entry.state)
-      if (state === undefined) {
+      if (config === undefined || state === undefined) {
         throw new Error("Project Time shared billing state is invalid.")
       }
 
-      sessions.set(sessionId, {
-        state,
-        config: entry.config,
-      })
+      sessions.set(sessionId, { state, config })
     }
 
     return {
@@ -217,7 +184,10 @@ export class SpreadBillingLedger {
 
   private async writeLedger(ledger: LedgerState): Promise<void> {
     const temporaryPath = `${this.filePath}.${process.pid}.${Date.now()}.tmp`
-    const sessions = Object.fromEntries(ledger.sessions)
+    const sessions = Object.fromEntries([...ledger.sessions].map(([sessionId, entry]) => [
+      sessionId,
+      { ...entry, state: serializeDeveloperCostState(entry.state) },
+    ]))
     const content = JSON.stringify({
       settledThroughMs: ledger.settledThroughMs,
       sessions,
@@ -226,46 +196,4 @@ export class SpreadBillingLedger {
     await writeFile(temporaryPath, content)
     await rename(temporaryPath, this.filePath)
   }
-}
-
-function isStoredConfig(value: unknown): value is DeveloperCostConfig {
-  if (typeof value !== "object" || value === null) return false
-
-  if (
-    !("monthlySalary" in value) ||
-    !("hoursPerWeek" in value) ||
-    !("weeksPerYear" in value) ||
-    !("activeWindowMinutes" in value) ||
-    !("refreshIntervalSeconds" in value) ||
-    !("label" in value)
-  ) {
-    return false
-  }
-
-  const monthlySalary = value.monthlySalary
-  const hoursPerWeek = value.hoursPerWeek
-  const weeksPerYear = value.weeksPerYear
-  const activeWindowMinutes = value.activeWindowMinutes
-  const refreshIntervalSeconds = value.refreshIntervalSeconds
-  const label = value.label
-
-  return (
-    typeof monthlySalary === "number" &&
-    Number.isFinite(monthlySalary) &&
-    monthlySalary > 0 &&
-    typeof hoursPerWeek === "number" &&
-    Number.isFinite(hoursPerWeek) &&
-    hoursPerWeek > 0 &&
-    typeof weeksPerYear === "number" &&
-    Number.isFinite(weeksPerYear) &&
-    weeksPerYear > 0 &&
-    typeof activeWindowMinutes === "number" &&
-    Number.isFinite(activeWindowMinutes) &&
-    activeWindowMinutes > 0 &&
-    typeof refreshIntervalSeconds === "number" &&
-    Number.isFinite(refreshIntervalSeconds) &&
-    refreshIntervalSeconds > 0 &&
-    typeof label === "string" &&
-    label.length > 0
-  )
 }

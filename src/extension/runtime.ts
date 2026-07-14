@@ -10,6 +10,7 @@ import {
 
 import {
   parseDeveloperCostConfig,
+  serializeDeveloperCostState,
   type DeveloperCostConfig,
   type DeveloperCostState,
 } from "@/billing/index.js"
@@ -248,7 +249,7 @@ export class ProjectTimeRuntime {
     this.runtimeState.activeContext = ctx
     this.runtimeState.activeSessionId = sessionId
 
-    this.pi.appendEntry(DEVELOPER_COST_STATE_ENTRY, nextState)
+    this.pi.appendEntry(DEVELOPER_COST_STATE_ENTRY, serializeDeveloperCostState(nextState))
     updateStatus(ctx, nextState, config)
   }
   private async settleCurrentTurn(ctx: ExtensionContext, closeBillableInterval = true): Promise<void> {
@@ -279,7 +280,7 @@ export class ProjectTimeRuntime {
     )
 
     this.sessionStates.set(sessionId, settledState)
-    this.pi.appendEntry(DEVELOPER_COST_STATE_ENTRY, settledState)
+    this.pi.appendEntry(DEVELOPER_COST_STATE_ENTRY, serializeDeveloperCostState(settledState))
     this.rememberActiveSession(ctx, sessionId, settledState)
     updateStatus(ctx, settledState, config)
   }
@@ -334,7 +335,7 @@ export class ProjectTimeRuntime {
     )
 
     this.sessionStates.set(activeSessionId, settledState)
-    this.pi.appendEntry(DEVELOPER_COST_STATE_ENTRY, settledState)
+    this.pi.appendEntry(DEVELOPER_COST_STATE_ENTRY, serializeDeveloperCostState(settledState))
     this.rememberActiveSession(activeContext, activeSessionId, settledState)
     updateStatus(activeContext, settledState, config)
 

@@ -4,7 +4,10 @@ import {
   billableSummaryText,
   billableWorkEntryPreview,
 } from "../billable-time/presentation.js";
-import { parseDeveloperCostConfig } from "../billing/index.js";
+import {
+  parseDeveloperCostConfig,
+  serializeDeveloperCostState,
+} from "../billing/index.js";
 import { MS_PER_SECOND } from "../billing/calculation/time-constants.js";
 import { SpreadBillingLedger } from "../billing/infrastructure/spread-ledger.js";
 import { loadDeveloperCostConfig } from "../config/loader/load-developer-cost-config.js";
@@ -252,7 +255,10 @@ export class ProjectTimeRuntime {
     this.sessionStates.set(sessionId, nextState);
     this.runtimeState.activeContext = ctx;
     this.runtimeState.activeSessionId = sessionId;
-    this.pi.appendEntry(DEVELOPER_COST_STATE_ENTRY, nextState);
+    this.pi.appendEntry(
+      DEVELOPER_COST_STATE_ENTRY,
+      serializeDeveloperCostState(nextState),
+    );
     updateStatus(ctx, nextState, config);
   }
 
@@ -285,7 +291,10 @@ export class ProjectTimeRuntime {
       config,
     );
     this.sessionStates.set(sessionId, settledState);
-    this.pi.appendEntry(DEVELOPER_COST_STATE_ENTRY, settledState);
+    this.pi.appendEntry(
+      DEVELOPER_COST_STATE_ENTRY,
+      serializeDeveloperCostState(settledState),
+    );
     this.rememberActiveSession(ctx, sessionId, settledState);
     updateStatus(ctx, settledState, config);
   }
@@ -338,7 +347,10 @@ export class ProjectTimeRuntime {
       config,
     );
     this.sessionStates.set(activeSessionId, settledState);
-    this.pi.appendEntry(DEVELOPER_COST_STATE_ENTRY, settledState);
+    this.pi.appendEntry(
+      DEVELOPER_COST_STATE_ENTRY,
+      serializeDeveloperCostState(settledState),
+    );
     this.rememberActiveSession(activeContext, activeSessionId, settledState);
     updateStatus(activeContext, settledState, config);
     return ProjectTimeRuntime.refreshIntervalMs(config);

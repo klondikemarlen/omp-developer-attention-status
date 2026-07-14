@@ -12,7 +12,9 @@ import {
   formatDeveloperCost,
   parseDeveloperCostConfig,
   parseDeveloperCostState,
+  parseStoredDeveloperCostConfig,
   recordDeveloperPrompt,
+  serializeDeveloperCostState,
   settleDeveloperCostState,
 } from "../src/billing/index.js"
 
@@ -54,6 +56,20 @@ test("defaults empty and invalid configuration values", () => {
   assert.equal(defaultedConfig.label, "dev")
 })
 
+test("normalizes valid stored configuration and rejects invalid values", () => {
+  const stored = {
+    monthlySalary: 6_500,
+    hoursPerWeek: 40,
+    weeksPerYear: 52,
+    activeWindowMinutes: 5,
+    refreshIntervalSeconds: 15,
+    label: " DEV ",
+  }
+
+  assert.equal(parseStoredDeveloperCostConfig(stored)?.label, "dev")
+  assert.equal(parseStoredDeveloperCostConfig({ ...stored, monthlySalary: 0 }), undefined)
+})
+
 
 test("computes the five minute developer rate", () => {
   assert.equal(costForActiveMs(config, windowMs).toFixed(2), "3.13")
@@ -70,13 +86,13 @@ test("supports custom working weeks per year", () => {
   assert.equal(costForActiveMs(customConfig, windowMs).toFixed(2), "3.32")
 })
 
-test("stores cost as a decimal string", () => {
+test("keeps cost as a value until persistence mapping", () => {
   const start = Date.UTC(2026, 0, 1, 12, 0, 0)
   const prompted = recordDeveloperPrompt(emptyDeveloperCostState(), start, config)
   const refreshed = settleDeveloperCostState(prompted, start + refreshMs, config)
 
-  assert.equal(typeof refreshed.totalCost, "string")
-  assert.equal(refreshed.totalCost, "0.15625")
+  assert.equal(typeof refreshed.totalCost, "object")
+  assert.equal(serializeDeveloperCostState(refreshed).totalCost, "0.15625")
 })
 
 test("accumulates attention metrics once across prompts and expiration", () => {
@@ -91,9 +107,9 @@ test("accumulates attention metrics once across prompts and expiration", () => {
   assert.equal(twoMinutesLater.activeMilliseconds, 2 * 60 * 1000)
   assert.equal(second.promptCount, 2)
   assert.equal(second.activeMilliseconds, 4 * 60 * 1000)
-  assert.equal(expired.totalCost, "5.625")
+  assert.equal(expired.totalCost.toString(), "5.625")
   assert.equal(expired.activeMilliseconds, 9 * 60 * 1000)
-  assert.equal(repeatedlySettled.totalCost, "5.625")
+  assert.equal(repeatedlySettled.totalCost.toString(), "5.625")
   assert.equal(repeatedlySettled.activeMilliseconds, 9 * 60 * 1000)
 })
 
@@ -105,7 +121,7 @@ test("accepts persisted numeric cost for old session entries", () => {
     billedWindows: 1,
   })
 
-  assert.equal(state?.totalCost, "3.125")
+  assert.equal(state?.totalCost.toString(), "3.125")
 })
 
 test("shows the active cost accumulated during one refresh interval", () => {
@@ -121,7 +137,7 @@ test("bills one active window for a single prompt after five minutes", () => {
   const prompted = recordDeveloperPrompt(emptyDeveloperCostState(), start, config)
   const settled = settleDeveloperCostState(prompted, start + windowMs, config)
 
-  assert.equal(settled.totalCost, "3.125")
+  assert.equal(settled.totalCost.toString(), "3.125")
   assert.equal(displayedDeveloperCost(settled).toFixed(2), "3.13")
   assert.equal(settled.activeStartAtMs, undefined)
   assert.equal(settled.activeUntilMs, undefined)
@@ -135,8 +151,8 @@ test("keeps only continuous active time when activity stops before ten minutes",
   const nineMinutesLater = settleDeveloperCostState(second, start + 9 * 60 * 1000, config)
   const tenMinutesLater = settleDeveloperCostState(second, start + 10 * 60 * 1000, config)
 
-  assert.equal(nineMinutesLater.totalCost, "5.625")
-  assert.equal(tenMinutesLater.totalCost, "5.625")
+  assert.equal(nineMinutesLater.totalCost.toString(), "5.625")
+  assert.equal(tenMinutesLater.totalCost.toString(), "5.625")
 })
 
 test("bills two windows when prompts keep the session active for ten minutes", () => {
@@ -146,7 +162,7 @@ test("bills two windows when prompts keep the session active for ten minutes", (
   const third = recordDeveloperPrompt(second, start + 8 * 60 * 1000, config)
   const settled = settleDeveloperCostState(third, start + 10 * 60 * 1000, config)
 
-  assert.equal(settled.totalCost, "6.25")
+  assert.equal(settled.totalCost.toString(), "6.25")
 })
 
 test("starts a new spell after more than five idle minutes", () => {
@@ -156,7 +172,7 @@ test("starts a new spell after more than five idle minutes", () => {
   const second = recordDeveloperPrompt(expired, start + 12 * 60 * 1000, config)
   const settled = settleDeveloperCostState(second, start + 17 * 60 * 1000, config)
 
-  assert.equal(settled.totalCost, "6.25")
+  assert.equal(settled.totalCost.toString(), "6.25")
 })
 
 test("formats the accumulated cost", () => {

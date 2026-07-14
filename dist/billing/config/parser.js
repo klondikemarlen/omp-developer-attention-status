@@ -48,4 +48,22 @@ export function parseDeveloperCostConfig(options) {
   };
 }
 
+export function parseStoredDeveloperCostConfig(value) {
+  if (typeof value !== "object" || value === null) return undefined;
+  const candidate = value;
+  const { billableTime: _billableTime, ...scalarOptions } = candidate;
+  const config = parseDeveloperCostConfig(scalarOptions);
+  if (
+    candidate.monthlySalary !== config.monthlySalary ||
+    candidate.hoursPerWeek !== config.hoursPerWeek ||
+    candidate.weeksPerYear !== config.weeksPerYear ||
+    candidate.activeWindowMinutes !== config.activeWindowMinutes ||
+    candidate.refreshIntervalSeconds !== config.refreshIntervalSeconds
+  ) {
+    return undefined;
+  }
+  const label = parseNonEmptyString(candidate.label)?.toLowerCase();
+  return label === config.label ? config : undefined;
+}
+
 export default parseDeveloperCostConfig;

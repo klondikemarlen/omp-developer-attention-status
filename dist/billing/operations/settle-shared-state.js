@@ -1,72 +1,82 @@
-import Big from "../../vendor/big.js";
-import { costForActiveMs } from "../../billing/calculation/cost-for-active-time.js";
+import { recordDeveloperPrompt } from "../../billing/operations/record-prompt.js";
+import { settleDeveloperCostState } from "../../billing/operations/settle-state.js";
 
 export function settleSpreadDeveloperCostStates(sessions, nowMs) {
-  const activeWindows = sessions.flatMap(({ state }) => {
-    if (
-      state.activeStartAtMs === undefined ||
-      state.activeUntilMs === undefined
-    )
-      return [];
-    return [
-      {
-        startAtMs: state.activeStartAtMs,
-        untilMs: state.activeUntilMs,
-      },
-    ];
-  });
+  const activeWindows = sessions.flatMap(({ state }) =>
+    activeWindowsFor(state),
+  );
   return sessions.map((session) => ({
     ...session,
-    state: settleSpreadDeveloperCostState(
+    state: settleDeveloperCostState(
       session.state,
+      nowMs,
       session.config,
       activeWindows,
-      nowMs,
     ),
   }));
 }
 
-function settleSpreadDeveloperCostState(state, config, activeWindows, nowMs) {
-  const nextState = { ...state };
-  if (
-    nextState.activeStartAtMs === undefined ||
-    nextState.activeUntilMs === undefined
-  ) {
-    return nextState;
+export function updateSpreadDeveloperCostStates(
+  sessions,
+  settledThroughMs,
+  sessionId,
+  state,
+  nowMs,
+  config,
+  recordPrompt,
+) {
+  const settlementAtMs = Math.max(nowMs, settledThroughMs);
+  const existingSession = sessions.find(
+    (session) => session.sessionId === sessionId,
+  );
+  const currentState = existingSession?.state ?? { ...state };
+  if (existingSession === undefined) {
+    reconcileActiveState(currentState, settledThroughMs);
   }
-  const settleFromMs = nextState.lastSettledAtMs ?? nextState.activeStartAtMs;
-  const settleUntilMs = Math.min(nowMs, nextState.activeUntilMs);
-  const splitPoints = activeWindows
-    .flatMap(({ startAtMs, untilMs }) => [startAtMs, untilMs])
-    .filter((pointMs) => pointMs > settleFromMs && pointMs < settleUntilMs)
-    .sort((left, right) => left - right);
-  const boundaries = [...new Set([...splitPoints, settleUntilMs])];
-  let segmentStartMs = settleFromMs;
-  for (const segmentUntilMs of boundaries) {
-    const elapsedMs = segmentUntilMs - segmentStartMs;
-    const activeSessionCount = activeWindows.filter(
-      ({ startAtMs, untilMs }) =>
-        startAtMs <= segmentStartMs && segmentStartMs < untilMs,
-    ).length;
-    if (elapsedMs > 0 && activeSessionCount > 0) {
-      const elapsedCost = costForActiveMs(config, elapsedMs).div(
-        activeSessionCount,
-      );
-      nextState.totalCost = Big(nextState.totalCost)
-        .plus(elapsedCost)
-        .toString();
-      nextState.activeMilliseconds += elapsedMs;
-    }
-    segmentStartMs = segmentUntilMs;
+  const settledSessions = settleSpreadDeveloperCostStates(
+    [
+      ...sessions.filter((session) => session.sessionId !== sessionId),
+      { sessionId, state: currentState, config },
+    ],
+    settlementAtMs,
+  );
+  const settledSession = settledSessions.find(
+    (session) => session.sessionId === sessionId,
+  );
+  if (settledSession === undefined) {
+    throw new Error(`Project Time cannot settle session ${sessionId}.`);
   }
-  if (settleUntilMs > settleFromMs) {
-    nextState.lastSettledAtMs = settleUntilMs;
+  const nextState = recordPrompt
+    ? recordDeveloperPrompt(settledSession.state, settlementAtMs, config)
+    : settledSession.state;
+  if (recordPrompt) {
+    nextState.lastPromptAtMs = Math.max(
+      nowMs,
+      settledSession.state.lastPromptAtMs ?? nowMs,
+    );
   }
-  if (nowMs < nextState.activeUntilMs) return nextState;
-  delete nextState.activeStartAtMs;
-  delete nextState.activeUntilMs;
-  delete nextState.lastSettledAtMs;
-  return nextState;
+  return {
+    sessions: settledSessions.map((session) =>
+      session.sessionId === sessionId
+        ? { ...session, state: nextState, config }
+        : session,
+    ),
+    settledThroughMs: settlementAtMs,
+    state: nextState,
+  };
+}
+
+function activeWindowsFor(state) {
+  if (state.activeStartAtMs === undefined || state.activeUntilMs === undefined)
+    return [];
+  return [{ startAtMs: state.activeStartAtMs, untilMs: state.activeUntilMs }];
+}
+
+function reconcileActiveState(state, settledThroughMs) {
+  if (state.activeStartAtMs === undefined || state.activeUntilMs === undefined)
+    return;
+  const settledFromMs = state.lastSettledAtMs ?? state.activeStartAtMs;
+  state.lastSettledAtMs = Math.max(settledFromMs, settledThroughMs);
 }
 
 export default settleSpreadDeveloperCostStates;

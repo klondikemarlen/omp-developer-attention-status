@@ -1,5 +1,7 @@
+import type Big from "@/vendor/big.js"
+
 export type DeveloperCostState = {
-  totalCost: string
+  totalCost: Big
   promptCount: number
   activeMilliseconds: number
   activeStartAtMs?: number

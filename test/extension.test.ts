@@ -897,7 +897,7 @@ test("bills one top-level session at the full $120 hourly rate", async () => {
     nowMs += 60_000
     await runtime.handlers.get("turn_end")?.({ type: "turn_end" } as never, ctx as never)
 
-    assert.equal(latestState(runtime).totalCost, "2")
+    assert.equal(latestState(runtime).totalCost.toString(), "2")
     assert.equal(latestState(runtime).activeMilliseconds, 60_000)
   } finally {
     mock.restoreAll()
@@ -921,8 +921,8 @@ test("splits simultaneous session billing across runtimes sharing one ledger", a
     await first.handlers.get("turn_end")?.({ type: "turn_end" } as never, firstCtx as never)
     await second.handlers.get("turn_end")?.({ type: "turn_end" } as never, secondCtx as never)
 
-    assert.equal(latestState(first).totalCost, "1")
-    assert.equal(latestState(second).totalCost, "1")
+    assert.equal(latestState(first).totalCost.toString(), "1")
+    assert.equal(latestState(second).totalCost.toString(), "1")
     assert.equal(latestState(first).activeMilliseconds, 60_000)
     assert.equal(latestState(second).activeMilliseconds, 60_000)
   } finally {
@@ -948,8 +948,8 @@ test("splits only the staggered overlap across runtimes sharing one ledger", asy
     await first.handlers.get("turn_end")?.({ type: "turn_end" } as never, firstCtx as never)
     await second.handlers.get("turn_end")?.({ type: "turn_end" } as never, secondCtx as never)
 
-    assert.equal(latestState(first).totalCost, "3")
-    assert.equal(latestState(second).totalCost, "1")
+    assert.equal(latestState(first).totalCost.toString(), "3")
+    assert.equal(latestState(second).totalCost.toString(), "1")
     assert.equal(latestState(first).activeMilliseconds, 120_000)
     assert.equal(latestState(second).activeMilliseconds, 60_000)
   } finally {
@@ -969,7 +969,10 @@ test("expires a session after its five-minute active window", async () => {
     nowMs += 6 * 60_000
     await runtime.handlers.get("turn_end")?.({ type: "turn_end" } as never, ctx as never)
 
-    assert.deepEqual(latestState(runtime), {
+    assert.deepEqual({
+      ...latestState(runtime),
+      totalCost: latestState(runtime).totalCost.toString(),
+    }, {
       totalCost: "10",
       promptCount: 1,
       activeMilliseconds: 5 * 60_000,
@@ -1007,7 +1010,7 @@ test("resumes stale persisted session state from its settled shared ledger entry
     })
     await resumed.handlers.get("session_start")?.({ reason: "resume" } as never, resumedCtx as never)
 
-    assert.equal(latestState(first).totalCost, "0")
+    assert.equal(latestState(first).totalCost.toString(), "0")
     assert.equal(resumed.statusText, "dim:$1.00 (dev)")
   } finally {
     mock.restoreAll()
@@ -1033,7 +1036,7 @@ test("does not bill a child runtime against a shared ledger", async () => {
     nowMs += 60_000
     await parent.handlers.get("turn_end")?.({ type: "turn_end" } as never, parentCtx as never)
 
-    assert.equal(latestState(parent).totalCost, "2")
+    assert.equal(latestState(parent).totalCost.toString(), "2")
     assert.equal(child.entries.length, 0)
     assert.equal(child.statusText, undefined)
   } finally {
@@ -1056,7 +1059,7 @@ test("starts a late prompt at the shared ledger settlement frontier", async () =
   assert.equal(late.lastPromptAtMs, 100)
   assert.equal(late.activeMilliseconds, 0)
   assert.equal(settledLate.activeMilliseconds, 1)
-  assert.equal(settledLate.totalCost, "0.00001666666666666667")
+  assert.equal(settledLate.totalCost.toString(), "0.00001666666666666667")
 })
 
 test("does not bill restored active state before the ledger settlement frontier", async () => {
@@ -1077,8 +1080,8 @@ test("does not bill restored active state before the ledger settlement frontier"
 
   const settledRestored = await ledger.settle("restored", restored, 60_000, config)
 
-  assert.equal(settledFirst.totalCost, "2")
-  assert.equal(settledRestored.totalCost, "0")
+  assert.equal(settledFirst.totalCost.toString(), "2")
+  assert.equal(settledRestored.totalCost.toString(), "0")
   assert.equal(settledRestored.activeMilliseconds, 0)
   assert.equal(Number(settledFirst.totalCost) + Number(settledRestored.totalCost), 2)
 })
@@ -1098,8 +1101,8 @@ test("preserves concurrent sessions in the shared ledger", async () => {
     secondLedger.settle("second", secondPrompt, 60_000, config),
   ])
 
-  assert.equal(first.totalCost, "1")
-  assert.equal(second.totalCost, "1")
+  assert.equal(first.totalCost.toString(), "1")
+  assert.equal(second.totalCost.toString(), "1")
 })
 
 test("keeps delayed same-session prompt timestamps monotonic in the shared ledger", async () => {

@@ -1,3 +1,5 @@
+import Big from "@/vendor/big.js"
+
 import { parseDecimalString } from "@/utils/parse-decimal-string.js"
 import { parseOptionalNumber } from "@/utils/parse-optional-number.js"
 import type { DeveloperCostState } from "@/billing/state/model.js"
@@ -23,13 +25,20 @@ export function parseDeveloperCostState(value: unknown): DeveloperCostState | un
   const activeMilliseconds = parseOptionalNumber(rawActiveMilliseconds) ?? 0
 
   return {
-    totalCost,
+    totalCost: Big(totalCost),
     promptCount,
     activeMilliseconds,
     activeStartAtMs,
     activeUntilMs,
     lastSettledAtMs,
     lastPromptAtMs,
+  }
+}
+
+export function serializeDeveloperCostState(state: DeveloperCostState): Record<string, unknown> {
+  return {
+    ...state,
+    totalCost: state.totalCost.toString(),
   }
 }
 

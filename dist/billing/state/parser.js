@@ -1,3 +1,4 @@
+import Big from "../../vendor/big.js";
 import { parseDecimalString } from "../../utils/parse-decimal-string.js";
 import { parseOptionalNumber } from "../../utils/parse-optional-number.js";
 
@@ -19,13 +20,20 @@ export function parseDeveloperCostState(value) {
   const promptCount = parseOptionalNumber(rawPromptCount) ?? 0;
   const activeMilliseconds = parseOptionalNumber(rawActiveMilliseconds) ?? 0;
   return {
-    totalCost,
+    totalCost: Big(totalCost),
     promptCount,
     activeMilliseconds,
     activeStartAtMs,
     activeUntilMs,
     lastSettledAtMs,
     lastPromptAtMs,
+  };
+}
+
+export function serializeDeveloperCostState(state) {
+  return {
+    ...state,
+    totalCost: state.totalCost.toString(),
   };
 }
 
