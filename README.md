@@ -214,7 +214,13 @@ rates, all of which are snapshotted when each record is written.
 Each mapped top-level prompt writes one five-minute attention token and records its AI interval
 until `turn_end` or shutdown. Records are local append-only files at
 `~/.omp/developer-attention-status/attention-tokens.ndjson` and
-`~/.omp/developer-attention-status/ai-intervals.ndjson`; raw prompt text is not stored.
+`~/.omp/developer-attention-status/ai-intervals.ndjson`.
+
+When an interval first settles, the plugin records an explicit user session title or a bounded
+generated description in `~/.omp/developer-attention-status/session-descriptions.ndjson`. If OMP
+has no usable title model, it records `Unlabeled billable work` instead. It refreshes the
+description after compaction and at shutdown. Raw prompt text, transcripts, tool output, artifacts,
+and model metadata are never persisted.
 
 Configure it as one JSON string:
 
@@ -228,6 +234,7 @@ omp plugin config set omp-developer-attention-status billableTime '{"repositorie
 /developer-cost-status
 /developer-cost-status summary
 /developer-cost-status billable
+/developer-cost-status billable preview
 ```
 
 The package name is `omp-developer-attention-status`; `/developer-cost-status` remains unchanged to
@@ -237,6 +244,9 @@ cost, active time, prompt count, and the last prompt's age and timestamp. It doe
 corrections, nudges, or outcomes.
 `billable` reports separately grouped attention-token and AI-interval units, durations, and
 snapshotted rates/currencies; its displayed amounts round only at the presentation boundary.
+`billable preview` emits local provider-neutral JSON entries with client attribution, source-specific
+timestamps, exact durations, snapshotted rates/currencies, and the recorded description. It performs
+no network operation and does not define an external-system payload or integration.
 
 ## Local project time log
 

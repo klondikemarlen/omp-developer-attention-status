@@ -1,5 +1,9 @@
+import { describeBillableSession } from "../billable-time/description-generator.js";
 import { BillableTimeRecorder } from "../billable-time/recorder.js";
-import { billableSummaryText } from "../billable-time/presentation.js";
+import {
+  billableSummaryText,
+  billableWorkEntryPreview,
+} from "../billable-time/presentation.js";
 import { parseDeveloperCostConfig } from "../billing/index.js";
 import { MS_PER_SECOND } from "../billing/calculation/time-constants.js";
 import { SpreadBillingLedger } from "../billing/infrastructure/spread-ledger.js";
@@ -28,6 +32,8 @@ export class DeveloperCostStatusRuntime {
   timeLogRecorder;
 
   billableTimeRecorder;
+
+  billableSessionIds = new Set();
 
   runtimeState = {};
 
@@ -71,6 +77,12 @@ export class DeveloperCostStatusRuntime {
     this.pi.on("turn_end", async (_event, ctx) => {
       await this.settleCurrentTurn(ctx);
     });
+    this.pi.on("session_compact", async (event, ctx) => {
+      await this.refreshBillableDescription(
+        ctx,
+        event.compactionEntry.shortSummary ?? event.compactionEntry.summary,
+      );
+    });
     this.pi.on("session_shutdown", async (_event, ctx) => {
       await this.shutdownSession(ctx);
     });
@@ -82,6 +94,15 @@ export class DeveloperCostStatusRuntime {
         "Developer cost status is only tracked for top-level sessions.",
         "info",
       );
+      return;
+    }
+    if (args.trim() === "billable preview") {
+      try {
+        const entries = await this.billableTimeRecorder.workEntries();
+        ctx.ui.notify(billableWorkEntryPreview(entries), "info");
+      } catch (error) {
+        ctx.ui.notify(`Billable time error: ${errorMessage(error)}`, "error");
+      }
       return;
     }
     if (args.trim() === "billable") {
@@ -152,12 +173,15 @@ export class DeveloperCostStatusRuntime {
     const stateBeforePrompt = { ...currentState };
     const promptAtMs = Date.now();
     try {
-      await this.billableTimeRecorder.recordPrompt(
+      const result = await this.billableTimeRecorder.recordPrompt(
         sessionId,
         ctx.cwd,
         promptAtMs,
         config.billableTime,
       );
+      if (result.started) this.billableSessionIds.add(sessionId);
+      if (result.closedInterval)
+        await this.recordBillableDescription(ctx, sessionId, false);
     } catch (error) {
       ctx.ui.notify(`Billable time error: ${errorMessage(error)}`, "error");
     }
@@ -187,7 +211,12 @@ export class DeveloperCostStatusRuntime {
     const sessionId = ctx.sessionManager.getSessionId();
     if (closeBillableInterval) {
       try {
-        await this.billableTimeRecorder.recordTurnEnd(sessionId, Date.now());
+        const closedInterval = await this.billableTimeRecorder.recordTurnEnd(
+          sessionId,
+          Date.now(),
+        );
+        if (closedInterval)
+          await this.recordBillableDescription(ctx, sessionId, false);
       } catch (error) {
         ctx.ui.notify(`Billable time error: ${errorMessage(error)}`, "error");
       }
@@ -214,7 +243,13 @@ export class DeveloperCostStatusRuntime {
   async shutdownSession(ctx) {
     const sessionId = ctx.sessionManager.getSessionId();
     try {
-      await this.billableTimeRecorder.recordShutdown(sessionId, Date.now());
+      const closedInterval = await this.billableTimeRecorder.recordShutdown(
+        sessionId,
+        Date.now(),
+      );
+      if (closedInterval || this.billableSessionIds.has(sessionId)) {
+        await this.recordBillableDescription(ctx, sessionId, true);
+      }
     } catch (error) {
       ctx.ui.notify(`Billable time error: ${errorMessage(error)}`, "error");
     }
@@ -225,6 +260,7 @@ export class DeveloperCostStatusRuntime {
       ctx.ui.notify(`Developer time log error: ${message}`, "error"),
     );
     this.sessionStates.delete(sessionId);
+    this.billableSessionIds.delete(sessionId);
     if (this.runtimeState.activeSessionId !== sessionId) return;
     this.clearActiveStatus(ctx);
   }
@@ -284,6 +320,47 @@ export class DeveloperCostStatusRuntime {
       "error",
     );
     this.clearActiveStatus(activeContext);
+  }
+
+  async refreshBillableDescription(ctx, currentSummary) {
+    if (!isTopLevelSession(ctx.sessionManager)) return;
+    const sessionId = ctx.sessionManager.getSessionId();
+    if (!this.billableSessionIds.has(sessionId)) return;
+    try {
+      await this.recordBillableDescription(
+        ctx,
+        sessionId,
+        true,
+        currentSummary,
+      );
+    } catch (error) {
+      ctx.ui.notify(`Billable time error: ${errorMessage(error)}`, "error");
+    }
+  }
+
+  async recordBillableDescription(ctx, sessionId, refresh, currentSummary) {
+    if (
+      !refresh &&
+      (await this.billableTimeRecorder.descriptionFor(sessionId)) !== undefined
+    )
+      return;
+    const generationContext = {
+      sessionId,
+      modelRegistry: ctx.modelRegistry,
+      settings: this.pi.pi?.settings,
+      model: ctx.model,
+    };
+    const description = await describeBillableSession(
+      ctx.sessionManager.getHeader(),
+      ctx.sessionManager.getEntries(),
+      generationContext,
+      currentSummary,
+    );
+    await this.billableTimeRecorder.recordDescription({
+      ...description,
+      sessionId,
+      recordedAtMs: Date.now(),
+    });
   }
 
   async loadConfigForStatus(ctx) {

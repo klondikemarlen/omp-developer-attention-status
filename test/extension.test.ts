@@ -99,6 +99,81 @@ test("records billable clocks only for mapped top-level sessions", async () => {
   })
 })
 
+test("stores local billable descriptions and previews provider-neutral entries", async () => {
+  const startedAtMs = Date.UTC(2026, 0, 1, 12, 0, 0)
+  let nowMs = startedAtMs
+
+  await withGitRepository("https://github.com/Acme/Project.git", async (cwd) => {
+    const billableTimePath = path.join(cwd, "billable")
+    const runtime = createExtensionRuntime({ billableTimePath, loadConfig: loadBillableRateConfig })
+    const context = createContext(runtime, { cwd, parentSession: undefined })
+    mock.method(Date, "now", () => nowMs)
+
+    try {
+      await runtime.handlers.get("before_agent_start")?.({ prompt: "top secret prompt" } as never, context as never)
+      nowMs += 1_000
+      await runtime.handlers.get("turn_end")?.({ type: "turn_end" } as never, context as never)
+      await runtime.handlers.get("session_compact")?.({
+        compactionEntry: { summary: "Implement notification suppression" },
+      } as never, context as never)
+
+      const descriptionPath = path.join(billableTimePath, "session-descriptions.ndjson")
+      const descriptions = (await readFile(descriptionPath, "utf8")).trim().split("\n").map((line) => JSON.parse(line))
+      assert.deepEqual(descriptions.map((description) => description.description), [
+        "Unlabeled billable work",
+        "Unlabeled billable work",
+      ])
+
+      await runtime.commands.get("developer-cost-status")?.handler("billable preview", context as never)
+      const preview = JSON.parse(runtime.notifications.at(-1)?.message ?? "")
+      assert.deepEqual(preview.map((entry: { source_kind: string }) => entry.source_kind), ["attention", "ai"])
+      assert.doesNotMatch(JSON.stringify(preview), /top secret prompt/)
+
+      nowMs += 1_000
+      await runtime.handlers.get("session_shutdown")?.({ type: "session_shutdown" } as never, context as never)
+
+      const refreshedDescriptions = (await readFile(descriptionPath, "utf8"))
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line))
+      assert.equal(refreshedDescriptions.length, 3)
+    } finally {
+      mock.restoreAll()
+    }
+  })
+})
+
+test("describes a superseded mapped interval before an unmapped prompt", async () => {
+  const startedAtMs = Date.UTC(2026, 0, 1, 12, 0, 0)
+  let nowMs = startedAtMs
+
+  await withGitRepository("https://github.com/Acme/Project.git", async (cwd) => {
+    const billableTimePath = path.join(cwd, "billable")
+    const runtime = createExtensionRuntime({ billableTimePath, loadConfig: loadBillableRateConfig })
+    const mappedContext = createContext(runtime, { cwd, parentSession: undefined })
+    const unmappedContext = createContext(runtime, {
+      cwd: path.join(tmpdir(), "billable-time-unmapped"),
+      parentSession: undefined,
+    })
+    mock.method(Date, "now", () => nowMs)
+
+    try {
+      await runtime.handlers.get("before_agent_start")?.({ prompt: "mapped prompt" } as never, mappedContext as never)
+      nowMs += 1_000
+      await runtime.handlers.get("before_agent_start")?.({ prompt: "unmapped prompt" } as never, unmappedContext as never)
+
+      const descriptions = (await readFile(
+        path.join(billableTimePath, "session-descriptions.ndjson"),
+        "utf8",
+      )).trim().split("\n").map((line) => JSON.parse(line))
+      assert.equal(descriptions.length, 1)
+      assert.equal(descriptions[0].source, "generated")
+    } finally {
+      mock.restoreAll()
+    }
+  })
+})
+
 test("converts configured refresh seconds to milliseconds", () => {
   const runtime = DeveloperCostStatusRuntime as unknown as {
     refreshIntervalMs(config: { refreshIntervalSeconds: number }): number
