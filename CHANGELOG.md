@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add private session-description records and `/developer-cost-status billable preview` provider-neutral JSON entries; no external-system adapter or payload is defined.
+
 ## [1.1.0] - 2026-07-14
 
 ### Added

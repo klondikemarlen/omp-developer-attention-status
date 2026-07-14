@@ -4,6 +4,7 @@ import {
   startAiInterval,
 } from "../billable-time/domain/record.js";
 import { normalizeBillableRepository } from "../billable-time/domain/repository.js";
+import { createBillableWorkEntries } from "../billable-time/domain/work-entry.js";
 import { BillableTimeRepository } from "../billable-time/infrastructure/ndjson-repository.js";
 import { summarizeBillableRecords } from "../billable-time/summary.js";
 import { resolveGitRepository } from "../time-log/infrastructure/git-repository.js";
@@ -20,9 +21,13 @@ export class BillableTimeRecorder {
   }
 
   async recordPrompt(sessionId, cwd, nowMs, config) {
-    await this.closePendingInterval(sessionId, nowMs, "superseded");
+    const closedInterval = await this.closePendingInterval(
+      sessionId,
+      nowMs,
+      "superseded",
+    );
     const mappedClient = await this.resolveClient(cwd, config);
-    if (mappedClient === undefined) return;
+    if (mappedClient === undefined) return { started: false, closedInterval };
     const attribution = this.attributionFor(
       sessionId,
       mappedClient.repository,
@@ -40,25 +45,58 @@ export class BillableTimeRecorder {
     );
     await this.repository.appendAttention(attention);
     this.pendingIntervals.set(sessionId, interval);
+    return { started: true, closedInterval };
   }
 
   async recordTurnEnd(sessionId, nowMs) {
-    await this.closePendingInterval(sessionId, nowMs, "turn_end");
+    return this.closePendingInterval(sessionId, nowMs, "turn_end");
   }
 
   async recordShutdown(sessionId, nowMs) {
-    await this.closePendingInterval(sessionId, nowMs, "shutdown");
+    return this.closePendingInterval(sessionId, nowMs, "shutdown");
   }
 
   async summaries() {
     return summarizeBillableRecords(await this.repository.records());
   }
 
+  async recordDescription(description) {
+    await this.repository.appendDescription(description);
+  }
+
+  async records() {
+    return this.repository.records();
+  }
+
+  async descriptions() {
+    return this.repository.descriptions();
+  }
+
+  async workEntries() {
+    const [records, descriptions] = await Promise.all([
+      this.repository.records(),
+      this.repository.descriptions(),
+    ]);
+    return createBillableWorkEntries(records, descriptions);
+  }
+
+  async descriptionFor(sessionId) {
+    const descriptions = await this.repository.descriptions();
+    for (let index = descriptions.length - 1; index >= 0; index -= 1) {
+      const description = descriptions[index];
+      if (description.sessionId === sessionId) return description;
+    }
+    return undefined;
+  }
+
   async closePendingInterval(sessionId, nowMs, terminalReason) {
     const existingClose = this.closingIntervals.get(sessionId);
-    if (existingClose !== undefined) return existingClose;
+    if (existingClose !== undefined) {
+      await existingClose;
+      return false;
+    }
     const pending = this.pendingIntervals.get(sessionId);
-    if (pending === undefined) return;
+    if (pending === undefined) return false;
     const interval = closeAiInterval(pending, nowMs, terminalReason);
     const close = this.repository.appendAiInterval(interval).then(() => {
       this.pendingIntervals.delete(sessionId);
@@ -69,6 +107,7 @@ export class BillableTimeRecorder {
     } finally {
       this.closingIntervals.delete(sessionId);
     }
+    return true;
   }
 
   async resolveClient(cwd, config) {

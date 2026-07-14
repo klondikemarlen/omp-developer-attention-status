@@ -5,6 +5,7 @@ import {
   parseAiIntervalRecord,
   parseAttentionTokenRecord,
 } from "../../billable-time/domain/record.js";
+import { parseBillableDescription } from "../../billable-time/domain/description.js";
 import { lock } from "../../vendor/proper-lockfile.js";
 
 const LOCK_OPTIONS = {
@@ -18,11 +19,14 @@ export class BillableTimeRepository {
 
   aiPath;
 
+  descriptionPath;
+
   constructor(
     rootPath = path.join(homedir(), ".omp", "developer-attention-status"),
   ) {
     this.attentionPath = path.join(rootPath, "attention-tokens.ndjson");
     this.aiPath = path.join(rootPath, "ai-intervals.ndjson");
+    this.descriptionPath = path.join(rootPath, "session-descriptions.ndjson");
   }
 
   async appendAttention(record) {
@@ -33,12 +37,24 @@ export class BillableTimeRepository {
     await this.append(this.aiPath, record, parseAiIntervalRecord);
   }
 
+  async appendDescription(description) {
+    await this.append(
+      this.descriptionPath,
+      description,
+      parseBillableDescription,
+    );
+  }
+
   async records() {
     const [attention, intervals] = await Promise.all([
       this.read(this.attentionPath, parseAttentionTokenRecord),
       this.read(this.aiPath, parseAiIntervalRecord),
     ]);
     return [...attention, ...intervals];
+  }
+
+  async descriptions() {
+    return this.read(this.descriptionPath, parseBillableDescription);
   }
 
   async append(filePath, record, parse) {

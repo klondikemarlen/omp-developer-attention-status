@@ -10,9 +10,11 @@ import {
   type AttentionTokenRecord,
   type PendingAiInterval,
 } from "../src/billable-time/domain/record.js"
+import type { BillableDescription } from "../src/billable-time/domain/description.js"
 import { BillableTimeRecorder } from "../src/billable-time/recorder.js"
 import { BillableTimeRepository } from "../src/billable-time/infrastructure/ndjson-repository.js"
 import { summarizeBillableRecords } from "../src/billable-time/summary.js"
+import { billableWorkEntryPreview } from "../src/billable-time/presentation.js"
 
 const repository = "github.com/klondikemarlen/omp-developer-attention-status"
 
@@ -166,6 +168,52 @@ test("snapshots policy rates and summarizes attention and AI clocks separately",
       { clientId: "icefog", clientLabel: "Icefog", currency: "USD", ratePerHour: "240", sourceKind: "attention", count: 1, durationMs: 300_000, amount: "20" },
       { clientId: "icefog", clientLabel: "Icefog", currency: "CAD", ratePerHour: "30", sourceKind: "ai", count: 1, durationMs: 3_600_000, amount: "30" },
       { clientId: "icefog", clientLabel: "Icefog", currency: "USD", ratePerHour: "60", sourceKind: "ai", count: 1, durationMs: 3_600_000, amount: "60" },
+    ])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test("renders provider-neutral preview entries with separate source clocks", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "billable-time-"))
+  const startedAtMs = Date.UTC(2026, 6, 14, 12, 0, 0)
+  const description: BillableDescription = {
+    sessionId: "session",
+    description: "Implement notification suppression",
+    source: "explicit",
+    recordedAtMs: startedAtMs,
+  }
+
+  try {
+    const recorder = new BillableTimeRecorder(root)
+    await recorder.recordPrompt("session", process.cwd(), startedAtMs, config())
+    await recorder.recordTurnEnd("session", startedAtMs + 90_000)
+    await recorder.recordDescription(description)
+
+    const preview = JSON.parse(billableWorkEntryPreview(await recorder.workEntries()))
+
+    assert.deepEqual(preview, [
+      {
+        client_id: "icefog",
+        client_label: "Icefog",
+        source_kind: "attention",
+        duration_ms: 300_000,
+        rate_per_hour: "120",
+        currency: "CAD",
+        description: "Implement notification suppression",
+        emitted_at_ms: startedAtMs,
+      },
+      {
+        client_id: "icefog",
+        client_label: "Icefog",
+        source_kind: "ai",
+        duration_ms: 90_000,
+        rate_per_hour: "30",
+        currency: "CAD",
+        description: "Implement notification suppression",
+        started_at_ms: startedAtMs,
+        ended_at_ms: startedAtMs + 90_000,
+      },
     ])
   } finally {
     await rm(root, { recursive: true, force: true })

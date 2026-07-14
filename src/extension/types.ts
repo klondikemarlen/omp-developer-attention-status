@@ -1,7 +1,11 @@
+import type { generateSessionTitle } from "@oh-my-pi/pi-coding-agent/utils/title-generator"
+
 import type { DeveloperCostConfig } from "@/billing/index.js"
 
 export type SessionHeaderLike = {
   parentSession?: unknown
+  title?: unknown
+  titleSource?: unknown
 }
 
 export type SessionEntryLike = {
@@ -30,6 +34,8 @@ export type ExtensionContext = {
   cwd: string
   ui: UiLike
   sessionManager: SessionManagerLike
+  modelRegistry?: Parameters<typeof generateSessionTitle>[1]
+  model?: Parameters<typeof generateSessionTitle>[4]
 }
 
 export type CommandHandler = (args: string, ctx: ExtensionContext) => Promise<void>
@@ -44,6 +50,16 @@ export type SessionHandler = (
   ctx: ExtensionContext,
 ) => Promise<void>
 
+
+export type SessionCompactHandler = (
+  event: {
+    compactionEntry: {
+      shortSummary?: unknown
+      summary?: unknown
+    }
+  },
+  ctx: ExtensionContext,
+) => Promise<void>
 export type TurnEndHandler = (
   event: { type: "turn_end" },
   ctx: ExtensionContext,
@@ -62,7 +78,9 @@ export type ExtensionApi = {
   on(event: "session_switch", handler: SessionHandler): void
   on(event: "before_agent_start", handler: BeforeAgentStartHandler): void
   on(event: "turn_end", handler: TurnEndHandler): void
+  on(event: "session_compact", handler: SessionCompactHandler): void
   on(event: "session_shutdown", handler: SessionHandler): void
+  pi?: { settings?: Parameters<typeof generateSessionTitle>[2] }
   appendEntry(customType: string, data?: unknown): void
 }
 

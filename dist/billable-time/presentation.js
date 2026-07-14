@@ -17,3 +17,27 @@ export function billableSummaryText(summaries) {
     })
     .join("\n");
 }
+
+export function billableWorkEntryPreview(entries) {
+  return JSON.stringify(entries.map(workEntryPreview), null, 2);
+}
+
+function workEntryPreview(entry) {
+  const shared = {
+    client_id: entry.clientId,
+    client_label: entry.clientLabel,
+    source_kind: entry.sourceKind,
+    duration_ms: entry.durationMs,
+    rate_per_hour: entry.ratePerHour,
+    currency: entry.currency,
+    description: entry.description,
+  };
+  if (entry.sourceKind === "attention") {
+    return { ...shared, emitted_at_ms: entry.emittedAtMs };
+  }
+  return {
+    ...shared,
+    started_at_ms: entry.startedAtMs,
+    ended_at_ms: entry.endedAtMs,
+  };
+}

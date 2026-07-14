@@ -9,6 +9,10 @@ import {
   type AttentionTokenRecord,
   type BillableRecord,
 } from "@/billable-time/domain/record.js"
+import {
+  parseBillableDescription,
+  type BillableDescription,
+} from "@/billable-time/domain/description.js"
 import { lock } from "@/vendor/proper-lockfile.js"
 
 const LOCK_OPTIONS = {
@@ -18,13 +22,17 @@ const LOCK_OPTIONS = {
   retries: { retries: 10, factor: 1.5, minTimeout: 100, maxTimeout: 1_000 },
 }
 
+type BillableLedgerRecord = BillableRecord | BillableDescription
+
 export class BillableTimeRepository {
   private readonly attentionPath: string
   private readonly aiPath: string
+  private readonly descriptionPath: string
 
   constructor(rootPath = path.join(homedir(), ".omp", "developer-attention-status")) {
     this.attentionPath = path.join(rootPath, "attention-tokens.ndjson")
     this.aiPath = path.join(rootPath, "ai-intervals.ndjson")
+    this.descriptionPath = path.join(rootPath, "session-descriptions.ndjson")
   }
 
   async appendAttention(record: AttentionTokenRecord): Promise<void> {
@@ -35,6 +43,10 @@ export class BillableTimeRepository {
     await this.append(this.aiPath, record, parseAiIntervalRecord)
   }
 
+  async appendDescription(description: BillableDescription): Promise<void> {
+    await this.append(this.descriptionPath, description, parseBillableDescription)
+  }
+
   async records(): Promise<BillableRecord[]> {
     const [attention, intervals] = await Promise.all([
       this.read(this.attentionPath, parseAttentionTokenRecord),
@@ -43,7 +55,11 @@ export class BillableTimeRepository {
     return [...attention, ...intervals]
   }
 
-  private async append<T extends BillableRecord>(
+  async descriptions(): Promise<BillableDescription[]> {
+    return this.read(this.descriptionPath, parseBillableDescription)
+  }
+
+  private async append<T extends BillableLedgerRecord>(
     filePath: string,
     record: T,
     parse: (value: unknown) => T | undefined,
@@ -58,7 +74,7 @@ export class BillableTimeRepository {
     }
   }
 
-  private async read<T extends BillableRecord>(
+  private async read<T extends BillableLedgerRecord>(
     filePath: string,
     parse: (value: unknown) => T | undefined,
   ): Promise<T[]> {
@@ -80,7 +96,7 @@ export class BillableTimeRepository {
     }
   }
 
-  private async repairIncompleteTail<T extends BillableRecord>(
+  private async repairIncompleteTail<T extends BillableLedgerRecord>(
     filePath: string,
     parse: (value: unknown) => T | undefined,
   ): Promise<void> {
@@ -112,7 +128,7 @@ export class BillableTimeRepository {
     return content.lastIndexOf("\n") + 1
   }
 
-  private parseTrailingRecord<T extends BillableRecord>(
+  private parseTrailingRecord<T extends BillableLedgerRecord>(
     line: string,
     parse: (value: unknown) => T | undefined,
   ): T | undefined {
@@ -123,7 +139,7 @@ export class BillableTimeRepository {
     }
   }
 
-  private parseLine<T extends BillableRecord>(
+  private parseLine<T extends BillableLedgerRecord>(
     filePath: string,
     line: string,
     lineNumber: number,
