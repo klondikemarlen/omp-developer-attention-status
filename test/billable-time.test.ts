@@ -18,7 +18,7 @@ import { billableWorkEntryPreview } from "../src/billable-time/presentation.js"
 
 const repository = "github.com/klondikemarlen/omp-project-time"
 
-function config() {
+function config(category?: { id: string; label: string }) {
   return parseBillableTimeConfig({
     clients: {
       icefog: {
@@ -29,6 +29,7 @@ function config() {
       },
     },
     repositories: { [repository]: "icefog" },
+    categories: category === undefined ? undefined : { [repository]: category },
   })
 }
 
@@ -218,6 +219,65 @@ test("renders provider-neutral preview entries with separate source clocks", asy
         started_at_ms: startedAtMs,
         ended_at_ms: startedAtMs + 90_000,
       },
+    ])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test("snapshots configured categories in records, summaries, and previews", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "billable-time-"))
+  const startedAtMs = Date.UTC(2026, 6, 14, 12, 0, 0)
+
+  try {
+    const recorder = new BillableTimeRecorder(root)
+    await recorder.recordPrompt("session", process.cwd(), startedAtMs, config({
+      id: "programming",
+      label: "Programming",
+    }))
+    await recorder.recordTurnEnd("session", startedAtMs + 90_000)
+
+    assert.deepEqual((await recorder.records()).map((record) => ({
+      sourceKind: record.sourceKind,
+      categoryId: record.categoryId,
+      categoryLabel: record.categoryLabel,
+    })), [
+      { sourceKind: "attention", categoryId: "programming", categoryLabel: "Programming" },
+      { sourceKind: "ai", categoryId: "programming", categoryLabel: "Programming" },
+    ])
+    assert.deepEqual(await recorder.summaries(), [
+      {
+        clientId: "icefog",
+        clientLabel: "Icefog",
+        categoryId: "programming",
+        categoryLabel: "Programming",
+        currency: "CAD",
+        ratePerHour: "120",
+        sourceKind: "attention",
+        count: 1,
+        durationMs: 300_000,
+        amount: "10",
+      },
+      {
+        clientId: "icefog",
+        clientLabel: "Icefog",
+        categoryId: "programming",
+        categoryLabel: "Programming",
+        currency: "CAD",
+        ratePerHour: "30",
+        sourceKind: "ai",
+        count: 1,
+        durationMs: 90_000,
+        amount: "0.75",
+      },
+    ])
+    const preview = JSON.parse(billableWorkEntryPreview(await recorder.workEntries()))
+    assert.deepEqual(preview.map((entry: { category_id: string; category_label: string }) => ({
+      categoryId: entry.category_id,
+      categoryLabel: entry.category_label,
+    })), [
+      { categoryId: "programming", categoryLabel: "Programming" },
+      { categoryId: "programming", categoryLabel: "Programming" },
     ])
   } finally {
     await rm(root, { recursive: true, force: true })

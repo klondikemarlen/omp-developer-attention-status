@@ -34,6 +34,7 @@ export class BillableTimeRecorder {
       mappedClient.client,
       mappedClient.projectId,
       mappedClient.projectName,
+      mappedClient.category,
     );
     const attention = createAttentionToken(
       attribution,
@@ -128,10 +129,18 @@ export class BillableTimeRecorder {
       projectName:
         config.projectNamesByRepository.get(repository) ??
         gitRepository.project,
+      category: config.categoriesByRepository.get(repository),
     };
   }
 
-  attributionFor(sessionId, repository, client, projectId, projectName) {
+  attributionFor(
+    sessionId,
+    repository,
+    client,
+    projectId,
+    projectName,
+    category,
+  ) {
     return {
       sessionId,
       clientId: client.id,
@@ -139,6 +148,8 @@ export class BillableTimeRecorder {
       repository,
       projectId,
       projectName,
+      categoryId: category?.id,
+      categoryLabel: category?.label,
       currency: client.currency,
     };
   }

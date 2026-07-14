@@ -4,6 +4,8 @@ import type { BillableRecord } from "@/billable-time/domain/record.js"
 export type BillableSummary = {
   clientId: string
   clientLabel: string
+  categoryId?: string
+  categoryLabel?: string
   currency: string
   ratePerHour: string
   sourceKind: BillableRecord["sourceKind"]
@@ -16,12 +18,24 @@ export function summarizeBillableRecords(records: readonly BillableRecord[]): Bi
   const summaries = new Map<string, BillableSummary>()
 
   for (const record of records) {
-    const key = [record.clientId, record.currency, record.ratePerHour, record.sourceKind].join("\u0000")
+    const key = [
+      record.clientId,
+      record.currency,
+      record.ratePerHour,
+      record.sourceKind,
+      record.categoryId ?? "",
+      record.categoryLabel ?? "",
+    ].join("\u0000")
     const existing = summaries.get(key)
     if (existing === undefined) {
       summaries.set(key, {
         clientId: record.clientId,
         clientLabel: record.clientLabel,
+        ...(
+          record.categoryId === undefined || record.categoryLabel === undefined
+            ? {}
+            : { categoryId: record.categoryId, categoryLabel: record.categoryLabel }
+        ),
         currency: record.currency,
         ratePerHour: record.ratePerHour,
         sourceKind: record.sourceKind,

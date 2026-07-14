@@ -10,10 +10,15 @@ const clientSchema = z.object({
   aiRatePerHour: positiveRateSchema,
 });
 const projectNameSchema = z.string().trim().min(1);
+const categorySchema = z.object({
+  id: z.string().trim().min(1),
+  label: z.string().trim().min(1),
+});
 const settingsSchema = z.object({
   clients: z.record(z.string(), clientSchema),
   defaultClient: z.string().trim().min(1).optional(),
   projects: z.record(z.string(), projectNameSchema).optional(),
+  categories: z.record(z.string(), categorySchema).optional(),
   repositories: z.record(z.string(), z.string().trim().min(1)).optional(),
 });
 export function parseBillableTimeConfig(value) {
@@ -22,6 +27,7 @@ export function parseBillableTimeConfig(value) {
     return {
       clientsByRepository: new Map(),
       projectNamesByRepository: new Map(),
+      categoriesByRepository: new Map(),
     };
   }
   const clients = new Map();
@@ -46,6 +52,15 @@ export function parseBillableTimeConfig(value) {
       projectName,
     );
   }
+  const categoriesByRepository = new Map();
+  for (const [repository, category] of Object.entries(
+    settings.categories ?? {},
+  )) {
+    categoriesByRepository.set(
+      normalizeBillableRepository(repository),
+      category,
+    );
+  }
   return {
     clientsByRepository,
     defaultClient:
@@ -53,6 +68,7 @@ export function parseBillableTimeConfig(value) {
         ? undefined
         : clientFor(settings.defaultClient, clients),
     projectNamesByRepository,
+    categoriesByRepository,
   };
 }
 

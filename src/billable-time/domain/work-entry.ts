@@ -6,6 +6,8 @@ type WorkEntryAttributes = {
   clientLabel: string
   projectId: string
   projectName: string
+  categoryId?: string
+  categoryLabel?: string
   description: string
   durationMs: number
   ratePerHour: string
@@ -42,6 +44,11 @@ function createBillableWorkEntry(record: BillableRecord, description: string): B
     clientLabel: record.clientLabel,
     projectId: record.projectId ?? record.repository,
     projectName: record.projectName ?? record.repository,
+    ...(
+      record.categoryId === undefined || record.categoryLabel === undefined
+        ? {}
+        : { categoryId: record.categoryId, categoryLabel: record.categoryLabel }
+    ),
     description,
     durationMs: record.durationMs,
     ratePerHour: record.ratePerHour,

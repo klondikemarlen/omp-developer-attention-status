@@ -192,7 +192,8 @@ restart after changing plugin code or install state.
 
 Configure a client policy with ISO 4217 currency and positive decimal rates. Setting
 `defaultClient` makes the active Git repository the billable project target; its project name
-defaults to the repository name. `projects` optionally replaces that displayed name for a specific
+defaults to the repository name. `projects` optionally replaces that displayed name, while
+`categories` assigns a provider-neutral category ID and label to new records for a specific
 normalized `github.com/owner/repository` identity. `repositories` remains available when a
 repository needs a client policy other than `defaultClient`.
 
@@ -210,15 +211,22 @@ repository needs a client policy other than `defaultClient`.
   "projects": {
     "github.com/icefoganalytics/wrap": "WRAP Support"
   },
+  "categories": {
+    "github.com/icefoganalytics/wrap": {
+      "id": "programming",
+      "label": "Programming"
+    }
+  },
   "repositories": {
     "github.com/icefoganalytics/other-project": "icefog"
   }
 }
 ```
 
-`defaultClient` is opt-in: Project Time never infers a rate or currency. New records snapshot the
-client, repository, project identity, project name, rate, and currency. Project attribution stays
-provider-neutral; it is not a Harvest project or task mapping.
+`defaultClient` is opt-in: Project Time never infers a rate, currency, or category. New records
+snapshot the client, repository, project identity, project name, category, rate, and currency.
+Project and category attribution stay provider-neutral; they are not Harvest project or task
+mappings.
 
 Each qualifying top-level prompt writes one five-minute attention token and records its AI interval
 until `turn_end` or shutdown. Records are local append-only files at
@@ -234,7 +242,7 @@ and model metadata are never persisted.
 Configure it as one JSON string:
 
 ```bash
-omp plugin config set omp-project-time billableTime '{"defaultClient":"icefog","clients":{"icefog":{"label":"Ice Fog Analytics","currency":"CAD","attentionRatePerHour":"120","aiRatePerHour":"30"}},"projects":{"github.com/icefoganalytics/wrap":"WRAP Support"}}'
+omp plugin config set omp-project-time billableTime '{"defaultClient":"icefog","clients":{"icefog":{"label":"Ice Fog Analytics","currency":"CAD","attentionRatePerHour":"120","aiRatePerHour":"30"}},"projects":{"github.com/icefoganalytics/wrap":"WRAP Support"},"categories":{"github.com/icefoganalytics/wrap":{"id":"programming","label":"Programming"}}}'
 ```
 
 ## Status command

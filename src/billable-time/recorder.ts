@@ -1,4 +1,4 @@
-import type { BillableClient, BillableTimeConfig } from "@/billable-time/config.js"
+import type { BillableCategory, BillableClient, BillableTimeConfig } from "@/billable-time/config.js"
 import {
   closeAiInterval,
   createAttentionToken,
@@ -48,6 +48,7 @@ export class BillableTimeRecorder {
       mappedClient.client,
       mappedClient.projectId,
       mappedClient.projectName,
+      mappedClient.category,
     )
     const attention = createAttentionToken(attribution, nowMs, mappedClient.client.attentionRatePerHour)
     const interval = startAiInterval(attribution, nowMs, mappedClient.client.aiRatePerHour)
@@ -144,6 +145,7 @@ export class BillableTimeRecorder {
       client,
       projectId: repository,
       projectName: config.projectNamesByRepository.get(repository) ?? gitRepository.project,
+      category: config.categoriesByRepository.get(repository),
     }
   }
 
@@ -153,6 +155,7 @@ export class BillableTimeRecorder {
     client: BillableClient,
     projectId: string,
     projectName: string,
+    category: BillableCategory | undefined,
   ): BillableAttribution {
     return {
       sessionId,
@@ -161,6 +164,8 @@ export class BillableTimeRecorder {
       repository,
       projectId,
       projectName,
+      categoryId: category?.id,
+      categoryLabel: category?.label,
       currency: client.currency,
     }
   }

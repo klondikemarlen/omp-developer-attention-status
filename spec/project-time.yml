@@ -54,6 +54,10 @@ requirements:
     title: Separate billable attention and AI clocks
     requirement: For an opted-in default client policy or configured GitHub repository-client mapping, record one fixed five-minute human-attention token and one exact AI interval for each top-level prompt. Attribute each record to the active repository and its configured-or-derived project name; snapshot project, rate, and ISO 4217 currency facts in separate append-only ledgers, derive totals with decimal arithmetic, and round only when presenting a summary.
     rationale: Human attention and AI runtime are separate billable observations with different rates; project attribution remains provider-neutral and later policy edits must not rewrite history.
+  - id: billable_categories
+    title: Provider-neutral billable categories
+    requirement: Allow a configured repository category ID and label to be snapshotted on new billable attention-token and AI-interval records, and preserve category attribution in summaries and previews.
+    rationale: Local category attribution lets a later exporter map work to its own task model without coupling Project Time to an external provider.
   - id: billable_clock_privacy
     title: Billable clock privacy boundary
     requirement: Do not persist raw prompt text, transcripts, tool output, artifacts, model metadata, or credentials in billable records.
@@ -65,3 +69,5 @@ non_requirements:
     description: Current OMP plugin status uses ctx.ui.setStatus and renders on the hook-status line unless OMP adds plugin-defined inline status segments.
   - id: no_inferred_corrections
     description: This plugin does not infer corrections, nudges, or outcomes from prompts; reliable correction telemetry requires richer OMP core signals.
+  - id: no_inferred_billable_categories
+    description: This plugin does not infer billable categories from prompts, agents, files, or issue text; categories require an explicit repository configuration.

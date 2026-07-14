@@ -15,7 +15,8 @@ export function billableSummaryText(summaries: readonly BillableSummary[]): stri
 
   return summaries.map((summary) => {
     const amount = formatBillableAmount(summary.amount, summary.currency)
-    return `${summary.clientLabel}: ${summary.sourceKind} ${summary.count} units, ${summary.durationMs}ms @ ${summary.ratePerHour} ${summary.currency}/h = ${amount} ${summary.currency}`
+    const category = summary.categoryLabel === undefined ? "" : ` / ${summary.categoryLabel}`
+    return `${summary.clientLabel}${category}: ${summary.sourceKind} ${summary.count} units, ${summary.durationMs}ms @ ${summary.ratePerHour} ${summary.currency}/h = ${amount} ${summary.currency}`
   }).join("\n")
 }
 
@@ -34,6 +35,11 @@ function workEntryPreview(entry: BillableWorkEntry): Record<string, string | num
     rate_per_hour: entry.ratePerHour,
     currency: entry.currency,
     description: entry.description,
+    ...(
+      entry.categoryId === undefined || entry.categoryLabel === undefined
+        ? {}
+        : { category_id: entry.categoryId, category_label: entry.categoryLabel }
+    ),
   }
 
   if (entry.sourceKind === "attention") {

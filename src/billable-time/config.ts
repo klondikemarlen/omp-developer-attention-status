@@ -10,18 +10,25 @@ const clientSchema = z.object({
   aiRatePerHour: positiveRateSchema,
 })
 const projectNameSchema = z.string().trim().min(1)
+const categorySchema = z.object({
+  id: z.string().trim().min(1),
+  label: z.string().trim().min(1),
+})
 const settingsSchema = z.object({
   clients: z.record(z.string(), clientSchema),
   defaultClient: z.string().trim().min(1).optional(),
   projects: z.record(z.string(), projectNameSchema).optional(),
+  categories: z.record(z.string(), categorySchema).optional(),
   repositories: z.record(z.string(), z.string().trim().min(1)).optional(),
 })
 
 export type BillableClient = z.infer<typeof clientSchema> & { id: string }
+export type BillableCategory = z.infer<typeof categorySchema>
 export type BillableTimeConfig = {
   clientsByRepository: ReadonlyMap<string, BillableClient>
   defaultClient?: BillableClient
   projectNamesByRepository: ReadonlyMap<string, string>
+  categoriesByRepository: ReadonlyMap<string, BillableCategory>
 }
 
 export function parseBillableTimeConfig(value: unknown): BillableTimeConfig {
@@ -30,6 +37,7 @@ export function parseBillableTimeConfig(value: unknown): BillableTimeConfig {
     return {
       clientsByRepository: new Map(),
       projectNamesByRepository: new Map(),
+      categoriesByRepository: new Map(),
     }
   }
 
@@ -51,12 +59,18 @@ export function parseBillableTimeConfig(value: unknown): BillableTimeConfig {
     projectNamesByRepository.set(normalizeBillableRepository(repository), projectName)
   }
 
+  const categoriesByRepository = new Map<string, BillableCategory>()
+  for (const [repository, category] of Object.entries(settings.categories ?? {})) {
+    categoriesByRepository.set(normalizeBillableRepository(repository), category)
+  }
+
   return {
     clientsByRepository,
     defaultClient: settings.defaultClient === undefined
       ? undefined
       : clientFor(settings.defaultClient, clients),
     projectNamesByRepository,
+    categoriesByRepository,
   }
 }
 

@@ -9,6 +9,8 @@ const commonSchema = z.object({
   repository: z.string().min(1),
   projectId: z.string().min(1).optional(),
   projectName: z.string().min(1).optional(),
+  categoryId: z.string().min(1).optional(),
+  categoryLabel: z.string().min(1).optional(),
   ratePerHour: positiveRateSchema,
   currency: currencySchema,
 })
@@ -16,7 +18,10 @@ const attentionTokenSchema = commonSchema.extend({
   emittedAtMs: z.number().finite(),
   sourceKind: z.literal("attention"),
   durationMs: z.literal(300_000),
-})
+}).refine(
+  (record) => (record.categoryId === undefined) === (record.categoryLabel === undefined),
+  "category ID and label must both be present",
+)
 const aiIntervalSchema = commonSchema.extend({
   startedAtMs: z.number().finite(),
   endedAtMs: z.number().finite(),
@@ -24,6 +29,10 @@ const aiIntervalSchema = commonSchema.extend({
   durationMs: z.number().finite().nonnegative(),
   terminalReason: z.enum(["turn_end", "shutdown", "superseded"]),
 }).refine((record) => record.durationMs === record.endedAtMs - record.startedAtMs, "duration must match timestamps")
+  .refine(
+    (record) => (record.categoryId === undefined) === (record.categoryLabel === undefined),
+    "category ID and label must both be present",
+  )
 
 export type AttentionTokenRecord = z.infer<typeof attentionTokenSchema>
 export type AiIntervalRecord = z.infer<typeof aiIntervalSchema>
@@ -31,7 +40,8 @@ export type BillableRecord = AttentionTokenRecord | AiIntervalRecord
 
 export type BillableAttribution = Pick<
   AttentionTokenRecord,
-  "sessionId" | "clientId" | "clientLabel" | "repository" | "projectId" | "projectName" | "currency"
+  "sessionId" | "clientId" | "clientLabel" | "repository" | "projectId" | "projectName"
+  | "categoryId" | "categoryLabel" | "currency"
 >
 export type PendingAiInterval = Omit<AiIntervalRecord, "endedAtMs" | "durationMs" | "terminalReason">
 

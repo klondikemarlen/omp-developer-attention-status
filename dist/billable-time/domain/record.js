@@ -9,14 +9,23 @@ const commonSchema = z.object({
   repository: z.string().min(1),
   projectId: z.string().min(1).optional(),
   projectName: z.string().min(1).optional(),
+  categoryId: z.string().min(1).optional(),
+  categoryLabel: z.string().min(1).optional(),
   ratePerHour: positiveRateSchema,
   currency: currencySchema,
 });
-const attentionTokenSchema = commonSchema.extend({
-  emittedAtMs: z.number().finite(),
-  sourceKind: z.literal("attention"),
-  durationMs: z.literal(300_000),
-});
+const attentionTokenSchema = commonSchema
+  .extend({
+    emittedAtMs: z.number().finite(),
+    sourceKind: z.literal("attention"),
+    durationMs: z.literal(300_000),
+  })
+  .refine(
+    (record) =>
+      (record.categoryId === undefined) ===
+      (record.categoryLabel === undefined),
+    "category ID and label must both be present",
+  );
 const aiIntervalSchema = commonSchema
   .extend({
     startedAtMs: z.number().finite(),
@@ -28,6 +37,12 @@ const aiIntervalSchema = commonSchema
   .refine(
     (record) => record.durationMs === record.endedAtMs - record.startedAtMs,
     "duration must match timestamps",
+  )
+  .refine(
+    (record) =>
+      (record.categoryId === undefined) ===
+      (record.categoryLabel === undefined),
+    "category ID and label must both be present",
   );
 export function createAttentionToken(attribution, emittedAtMs, ratePerHour) {
   return attentionTokenSchema.parse({
