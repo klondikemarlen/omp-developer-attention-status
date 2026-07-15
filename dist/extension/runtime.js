@@ -9,7 +9,7 @@ import { MS_PER_SECOND } from "../billing/calculation/time-constants.js";
 import { SpreadBillingLedger } from "../billing/infrastructure/spread-ledger.js";
 import { loadDeveloperCostConfig } from "../config/loader/load-developer-cost-config.js";
 import { AutomaticTimeLogRecorder } from "../time-log/recorder.js";
-import { resolveGitRepository } from "../time-log/infrastructure/git-repository.js";
+import { resolveGitRepository } from "../infrastructure/git-repository.js";
 import { normalizeBillableRepository } from "../billable-time/domain/repository.js";
 import { errorMessage } from "../utils/error-message.js";
 import path from "node:path";

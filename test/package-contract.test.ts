@@ -77,7 +77,7 @@ test("ships generated modules with separated declarations", async () => {
   assert.match(ledger, /filePath;\n\n  constructor\(/)
   assert.match(ledger, /}\n\n  async recordPrompt\(/)
 
-  const repositoryIdentityUrl = new URL("../dist/time-log/domain/repository-identity.js", import.meta.url)
+  const repositoryIdentityUrl = new URL("../dist/infrastructure/repository-identity.js", import.meta.url)
   const repositoryIdentity = await readFile(repositoryIdentityUrl, "utf8")
 
   assert.match(repositoryIdentity, /}\n\nfunction repositoryIdentityFromUrl\(/)

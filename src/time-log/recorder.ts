@@ -6,7 +6,7 @@ import type { AutomaticTimeLogInput, TimeLogEntry } from "@/time-log/domain/mode
 import {
   resolveGitRepository,
   type GitRepository,
-} from "@/time-log/infrastructure/git-repository.js"
+} from "@/infrastructure/git-repository.js"
 
 type Settlement = {
   cwd: string

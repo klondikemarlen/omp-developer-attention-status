@@ -47,13 +47,13 @@ import defaultParseTimeLogEntry, {
 } from "../src/time-log/domain/parse-entry.js"
 import defaultRepositoryIdentityFromRemoteUrl, {
   repositoryIdentityFromRemoteUrl,
-} from "../src/time-log/domain/repository-identity.js"
+} from "../src/infrastructure/repository-identity.js"
 import defaultSanitizedProjectLabel, {
   sanitizedProjectLabel,
-} from "../src/time-log/domain/sanitized-project-label.js"
+} from "../src/infrastructure/sanitized-project-label.js"
 import defaultResolveGitRepository, {
   resolveGitRepository,
-} from "../src/time-log/infrastructure/git-repository.js"
+} from "../src/infrastructure/git-repository.js"
 import defaultErrorMessage, { errorMessage } from "../src/utils/error-message.js"
 import defaultIsEnoent, { isEnoent } from "../src/utils/is-enoent.js"
 import defaultIsFiniteNumber, {
