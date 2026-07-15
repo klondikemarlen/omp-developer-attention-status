@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.2] - 2026-07-15
+
+### Changed
+
+- Share Git repository identity infrastructure between billable-time and automatic project-time logging.
+
 ## [2.3.1] - 2026-07-14
 
 ### Fixed
