@@ -7,7 +7,7 @@ import { normalizeBillableRepository } from "../billable-time/domain/repository.
 import { createBillableWorkEntries } from "../billable-time/domain/work-entry.js";
 import { BillableTimeRepository } from "../billable-time/infrastructure/ndjson-repository.js";
 import { summarizeBillableRecords } from "../billable-time/summary.js";
-import { resolveGitRepository } from "../time-log/infrastructure/git-repository.js";
+import { resolveGitRepository } from "../infrastructure/git-repository.js";
 
 export class BillableTimeRecorder {
   repository;

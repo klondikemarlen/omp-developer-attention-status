@@ -20,7 +20,7 @@ import { ProjectTimeRuntime } from "../src/extension/runtime.js"
 import { DEVELOPER_COST_STATE_ENTRY } from "../src/extension/session-state.js"
 import projectTimeExtension, { type ExtensionApi } from "../src/index.js"
 import { TimeLogLedger } from "../src/time-log/infrastructure/ledger.js"
-import { resolveGitRepository } from "../src/time-log/infrastructure/git-repository.js"
+import { resolveGitRepository } from "../src/infrastructure/git-repository.js"
 
 const execFileAsync = promisify(execFile)
 

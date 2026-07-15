@@ -1,5 +1,5 @@
 import type { DeveloperCostState } from "@/billing/index.js"
-import type { GitRepository } from "@/time-log/infrastructure/git-repository.js"
+import type { GitRepository } from "@/infrastructure/git-repository.js"
 import type { AutomaticTimeLogInput } from "@/time-log/domain/model.js"
 
 type AutomaticEntryOptions = {
