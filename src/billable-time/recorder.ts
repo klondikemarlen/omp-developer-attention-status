@@ -166,7 +166,6 @@ export class BillableTimeRecorder {
       projectName,
       categoryId: category?.id,
       categoryLabel: category?.label,
-      currency: client.currency,
     }
   }
 }

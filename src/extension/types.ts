@@ -96,5 +96,5 @@ export type ExtensionOptions = {
   timeLogPath?: string
   billableTimePath?: string
   generateTitle?: (input: string) => Promise<string | null>
-  localDataMigration?: () => Promise<void>
+  prepareLocalData?: () => Promise<void>
 }

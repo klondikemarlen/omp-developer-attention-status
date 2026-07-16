@@ -22,7 +22,6 @@ import path from "node:path"
 import { isTopLevelSession } from "@/extension/session-classification.js"
 import {
   defaultProjectTimeDataRoot,
-  migrateProjectTimeDataRoot,
   prepareProjectTimeDataRoot,
 } from "@/extension/local-data-root.js"
 import { SessionStateCoordinator } from "@/extension/application/session-state-coordinator.js"
@@ -83,9 +82,9 @@ export class ProjectTimeRuntime {
   private readonly timeLogRecorder: AutomaticTimeLogRecorder
   private readonly billableTimeRecorder: BillableTimeRecorder
   private readonly generateTitle: ExtensionOptions["generateTitle"]
-  private localDataMigration: Promise<void> | undefined
+  private localDataPreparation: Promise<void> | undefined
   private readonly usesDefaultDataRoot: boolean
-  private readonly migrateLocalData: () => Promise<void>
+  private readonly prepareLocalData: () => Promise<void>
   private readonly billableSessionIds = new Set<string>()
   private readonly runtimeState: RuntimeState = {}
 
@@ -100,7 +99,7 @@ export class ProjectTimeRuntime {
     this.pi = pi
     this.loadConfig = options.loadConfig ?? loadDeveloperCostConfig
     const dataRoot = defaultProjectTimeDataRoot()
-    const usesDefaultDataRoot = options.localDataMigration !== undefined
+    const usesDefaultDataRoot = options.prepareLocalData !== undefined
       || options.ledgerPath === undefined
       || options.timeLogPath === undefined
       || options.billableTimePath === undefined
@@ -115,8 +114,7 @@ export class ProjectTimeRuntime {
     )
     this.billableTimeRecorder = new BillableTimeRecorder(options.billableTimePath ?? dataRoot)
     this.usesDefaultDataRoot = usesDefaultDataRoot
-    this.migrateLocalData = options.localDataMigration
-      ?? (() => migrateProjectTimeDataRoot().then(() => prepareProjectTimeDataRoot()))
+    this.prepareLocalData = options.prepareLocalData ?? prepareProjectTimeDataRoot
     this.generateTitle = options.generateTitle
   }
 
@@ -170,8 +168,8 @@ export class ProjectTimeRuntime {
     if (!this.usesDefaultDataRoot) return true
 
     try {
-      this.localDataMigration ??= this.migrateLocalData()
-      await this.localDataMigration
+      this.localDataPreparation ??= this.prepareLocalData()
+      await this.localDataPreparation
       return true
     } catch (error) {
       ctx.ui.notify(errorMessage(error), "error")

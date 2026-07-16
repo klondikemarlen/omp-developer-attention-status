@@ -6,7 +6,6 @@ export type BillableSummary = {
   clientLabel: string
   categoryId?: string
   categoryLabel?: string
-  currency: string
   ratePerHour: string
   sourceKind: BillableRecord["sourceKind"]
   count: number
@@ -20,7 +19,6 @@ export function summarizeBillableRecords(records: readonly BillableRecord[]): Bi
   for (const record of records) {
     const key = [
       record.clientId,
-      record.currency,
       record.ratePerHour,
       record.sourceKind,
       record.categoryId ?? "",
@@ -36,7 +34,6 @@ export function summarizeBillableRecords(records: readonly BillableRecord[]): Bi
             ? {}
             : { categoryId: record.categoryId, categoryLabel: record.categoryLabel }
         ),
-        currency: record.currency,
         ratePerHour: record.ratePerHour,
         sourceKind: record.sourceKind,
         count: 1,

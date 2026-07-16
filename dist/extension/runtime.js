@@ -16,7 +16,6 @@ import path from "node:path";
 import { isTopLevelSession } from "../extension/session-classification.js";
 import {
   defaultProjectTimeDataRoot,
-  migrateProjectTimeDataRoot,
   prepareProjectTimeDataRoot,
 } from "../extension/local-data-root.js";
 import { SessionStateCoordinator } from "../extension/application/session-state-coordinator.js";
@@ -68,11 +67,11 @@ export class ProjectTimeRuntime {
 
   generateTitle;
 
-  localDataMigration;
+  localDataPreparation;
 
   usesDefaultDataRoot;
 
-  migrateLocalData;
+  prepareLocalData;
 
   billableSessionIds = new Set();
 
@@ -91,7 +90,7 @@ export class ProjectTimeRuntime {
     this.loadConfig = options.loadConfig ?? loadDeveloperCostConfig;
     const dataRoot = defaultProjectTimeDataRoot();
     const usesDefaultDataRoot =
-      options.localDataMigration !== undefined ||
+      options.prepareLocalData !== undefined ||
       options.ledgerPath === undefined ||
       options.timeLogPath === undefined ||
       options.billableTimePath === undefined;
@@ -110,10 +109,8 @@ export class ProjectTimeRuntime {
       options.billableTimePath ?? dataRoot,
     );
     this.usesDefaultDataRoot = usesDefaultDataRoot;
-    this.migrateLocalData =
-      options.localDataMigration ??
-      (() =>
-        migrateProjectTimeDataRoot().then(() => prepareProjectTimeDataRoot()));
+    this.prepareLocalData =
+      options.prepareLocalData ?? prepareProjectTimeDataRoot;
     this.generateTitle = options.generateTitle;
   }
 
@@ -159,8 +156,8 @@ export class ProjectTimeRuntime {
   async localDataReady(ctx) {
     if (!this.usesDefaultDataRoot) return true;
     try {
-      this.localDataMigration ??= this.migrateLocalData();
-      await this.localDataMigration;
+      this.localDataPreparation ??= this.prepareLocalData();
+      await this.localDataPreparation;
       return true;
     } catch (error) {
       ctx.ui.notify(errorMessage(error), "error");

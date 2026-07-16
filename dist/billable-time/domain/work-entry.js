@@ -21,7 +21,6 @@ function createBillableWorkEntry(record, description) {
     description,
     durationMs: record.durationMs,
     ratePerHour: record.ratePerHour,
-    currency: record.currency,
   };
   if (record.sourceKind === "attention") {
     return {

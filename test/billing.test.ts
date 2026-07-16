@@ -176,5 +176,5 @@ test("starts a new spell after more than five idle minutes", () => {
 })
 
 test("formats the accumulated cost", () => {
-  assert.equal(formatDeveloperCost(Big("3.125")), "$3.13")
+  assert.equal(formatDeveloperCost(Big("3.125")), "CA$3.13")
 })

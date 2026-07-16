@@ -1,5 +1,4 @@
 import { positiveRateSchema, type PositiveRate } from "@/billable-time/domain/rate.js"
-import { currencySchema } from "@/billable-time/domain/currency.js"
 import { z } from "@/vendor/zod.js"
 
 const commonSchema = z.object({
@@ -12,7 +11,6 @@ const commonSchema = z.object({
   categoryId: z.string().min(1).optional(),
   categoryLabel: z.string().min(1).optional(),
   ratePerHour: positiveRateSchema,
-  currency: currencySchema,
 })
 const attentionTokenSchema = commonSchema.extend({
   emittedAtMs: z.number().finite(),
@@ -40,8 +38,8 @@ export type BillableRecord = AttentionTokenRecord | AiIntervalRecord
 
 export type BillableAttribution = Pick<
   AttentionTokenRecord,
-  "sessionId" | "clientId" | "clientLabel" | "repository" | "projectId" | "projectName"
-  | "categoryId" | "categoryLabel" | "currency"
+  | "sessionId" | "clientId" | "clientLabel" | "repository" | "projectId" | "projectName"
+  | "categoryId" | "categoryLabel"
 >
 export type PendingAiInterval = Omit<AiIntervalRecord, "endedAtMs" | "durationMs" | "terminalReason">
 

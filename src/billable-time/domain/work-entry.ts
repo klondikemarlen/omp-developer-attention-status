@@ -11,7 +11,6 @@ type WorkEntryAttributes = {
   description: string
   durationMs: number
   ratePerHour: string
-  currency: string
 }
 
 export type BillableWorkEntry = (
@@ -52,7 +51,6 @@ function createBillableWorkEntry(record: BillableRecord, description: string): B
     description,
     durationMs: record.durationMs,
     ratePerHour: record.ratePerHour,
-    currency: record.currency,
   }
 
   if (record.sourceKind === "attention") {

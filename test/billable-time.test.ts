@@ -23,7 +23,6 @@ function config(category?: { id: string; label: string }) {
     clients: {
       icefog: {
         label: "Icefog",
-        currency: "cad",
         attentionRatePerHour: "120",
         aiRatePerHour: "30",
       },
@@ -33,21 +32,21 @@ function config(category?: { id: string; label: string }) {
   })
 }
 
-test("rejects non-ISO currency codes", () => {
-  assert.throws(
-    () => parseBillableTimeConfig({
-      clients: {
-        icefog: {
-          label: "Icefog",
-          currency: "ZZZ",
-          attentionRatePerHour: "120",
-          aiRatePerHour: "30",
-        },
+test("ignores legacy currency configuration", () => {
+  const config = parseBillableTimeConfig({
+    defaultClient: "icefog",
+    clients: {
+      icefog: {
+        label: "Icefog",
+        currency: "USD",
+        attentionRatePerHour: "120",
+        aiRatePerHour: "30",
       },
-      repositories: { [repository]: "icefog" },
-    }),
-    /ISO 4217 currency code/,
-  )
+    },
+  })
+
+  assert.equal(config.defaultClient?.label, "Icefog")
+  assert.equal("currency" in (config.defaultClient ?? {}), false)
 })
 
 test("records separate five-minute attention tokens and AI intervals", async () => {
@@ -64,8 +63,10 @@ test("records separate five-minute attention tokens and AI intervals", async () 
 
     assert.equal(attention.durationMs, 300_000)
     assert.equal(attention.ratePerHour, "120")
+    assert.equal("currency" in attention, false)
     assert.equal(interval.durationMs, 90_000)
     assert.equal(interval.ratePerHour, "30")
+    assert.equal("currency" in interval, false)
     assert.equal(interval.terminalReason, "turn_end")
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -102,7 +103,6 @@ test("does not record unmapped repositories", async () => {
     clients: {
       icefog: {
         label: "Icefog",
-        currency: "cad",
         attentionRatePerHour: "120",
         aiRatePerHour: "30",
       },
@@ -149,7 +149,6 @@ test("snapshots policy rates and summarizes attention and AI clocks separately",
     clients: {
       icefog: {
         label: "Icefog",
-        currency: "usd",
         attentionRatePerHour: "240",
         aiRatePerHour: "60",
       },
@@ -165,10 +164,10 @@ test("snapshots policy rates and summarizes attention and AI clocks separately",
     await recorder.recordTurnEnd("second", firstStartedAtMs + 10_800_000)
 
     assert.deepEqual(await recorder.summaries(), [
-      { clientId: "icefog", clientLabel: "Icefog", currency: "CAD", ratePerHour: "120", sourceKind: "attention", count: 1, durationMs: 300_000, amount: "10" },
-      { clientId: "icefog", clientLabel: "Icefog", currency: "USD", ratePerHour: "240", sourceKind: "attention", count: 1, durationMs: 300_000, amount: "20" },
-      { clientId: "icefog", clientLabel: "Icefog", currency: "CAD", ratePerHour: "30", sourceKind: "ai", count: 1, durationMs: 3_600_000, amount: "30" },
-      { clientId: "icefog", clientLabel: "Icefog", currency: "USD", ratePerHour: "60", sourceKind: "ai", count: 1, durationMs: 3_600_000, amount: "60" },
+      { clientId: "icefog", clientLabel: "Icefog", ratePerHour: "120", sourceKind: "attention", count: 1, durationMs: 300_000, amount: "10" },
+      { clientId: "icefog", clientLabel: "Icefog", ratePerHour: "240", sourceKind: "attention", count: 1, durationMs: 300_000, amount: "20" },
+      { clientId: "icefog", clientLabel: "Icefog", ratePerHour: "30", sourceKind: "ai", count: 1, durationMs: 3_600_000, amount: "30" },
+      { clientId: "icefog", clientLabel: "Icefog", ratePerHour: "60", sourceKind: "ai", count: 1, durationMs: 3_600_000, amount: "60" },
     ])
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -202,7 +201,6 @@ test("renders provider-neutral preview entries with separate source clocks", asy
         source_kind: "attention",
         duration_ms: 300_000,
         rate_per_hour: "120",
-        currency: "CAD",
         description: "Implement notification suppression",
         emitted_at_ms: startedAtMs,
       },
@@ -214,7 +212,6 @@ test("renders provider-neutral preview entries with separate source clocks", asy
         source_kind: "ai",
         duration_ms: 90_000,
         rate_per_hour: "30",
-        currency: "CAD",
         description: "Implement notification suppression",
         started_at_ms: startedAtMs,
         ended_at_ms: startedAtMs + 90_000,
@@ -251,7 +248,6 @@ test("snapshots configured categories in records, summaries, and previews", asyn
         clientLabel: "Icefog",
         categoryId: "programming",
         categoryLabel: "Programming",
-        currency: "CAD",
         ratePerHour: "120",
         sourceKind: "attention",
         count: 1,
@@ -263,7 +259,6 @@ test("snapshots configured categories in records, summaries, and previews", asyn
         clientLabel: "Icefog",
         categoryId: "programming",
         categoryLabel: "Programming",
-        currency: "CAD",
         ratePerHour: "30",
         sourceKind: "ai",
         count: 1,
@@ -294,14 +289,12 @@ test("totals twelve attention tokens at one exact decimal hourly rate", () => {
     sourceKind: "attention",
     durationMs: 300_000,
     ratePerHour: "123.45",
-    currency: "CAD",
   }
   const summary = summarizeBillableRecords(Array.from({ length: 12 }, () => token))
 
   assert.deepEqual(summary, [{
     clientId: "icefog",
     clientLabel: "Icefog",
-    currency: "CAD",
     ratePerHour: "123.45",
     sourceKind: "attention",
     count: 12,
@@ -319,7 +312,6 @@ test("closes AI intervals at their start time when given an earlier terminal tim
     repository,
     sourceKind: "ai",
     ratePerHour: "30",
-    currency: "CAD",
   }
 
   const interval = closeAiInterval(pending, 999, "turn_end")
@@ -339,7 +331,6 @@ test("serializes concurrent attention token appends", async () => {
     sourceKind: "attention",
     durationMs: 300_000,
     ratePerHour: "120",
-    currency: "CAD",
   }
   const second: AttentionTokenRecord = {
     ...first,
@@ -374,7 +365,6 @@ test("preserves a complete final record without a newline during append recovery
     sourceKind: "attention",
     durationMs: 300_000,
     ratePerHour: "120",
-    currency: "CAD",
   }
 
   try {
@@ -401,7 +391,6 @@ test("removes a partial UTF-8 tail before appending", async () => {
     sourceKind: "attention",
     durationMs: 300_000,
     ratePerHour: "120",
-    currency: "CAD",
   }
 
   try {

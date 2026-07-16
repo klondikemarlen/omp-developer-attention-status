@@ -2,21 +2,17 @@ import Big from "@/vendor/big.js"
 import type { BillableSummary } from "@/billable-time/summary.js"
 import type { BillableWorkEntry } from "@/billable-time/domain/work-entry.js"
 
-export function formatBillableAmount(amount: string, currency: string): string {
-  const fractionDigits = new Intl.NumberFormat("en", { style: "currency", currency })
-    .resolvedOptions()
-    .maximumFractionDigits
-
-  return Big(amount).toFixed(fractionDigits)
+export function formatBillableAmount(amount: string): string {
+  return `CA$${Big(amount).toFixed(2)}`
 }
 
 export function billableSummaryText(summaries: readonly BillableSummary[]): string {
   if (summaries.length === 0) return "No billable time recorded."
 
   return summaries.map((summary) => {
-    const amount = formatBillableAmount(summary.amount, summary.currency)
+    const amount = formatBillableAmount(summary.amount)
     const category = summary.categoryLabel === undefined ? "" : ` / ${summary.categoryLabel}`
-    return `${summary.clientLabel}${category}: ${summary.sourceKind} ${summary.count} units, ${summary.durationMs}ms @ ${summary.ratePerHour} ${summary.currency}/h = ${amount} ${summary.currency}`
+    return `${summary.clientLabel}${category}: ${summary.sourceKind} ${summary.count} units, ${summary.durationMs}ms @ CA$${summary.ratePerHour}/h = ${amount}`
   }).join("\n")
 }
 
@@ -33,7 +29,6 @@ function workEntryPreview(entry: BillableWorkEntry): Record<string, string | num
     source_kind: entry.sourceKind,
     duration_ms: entry.durationMs,
     rate_per_hour: entry.ratePerHour,
-    currency: entry.currency,
     description: entry.description,
     ...(
       entry.categoryId === undefined || entry.categoryLabel === undefined

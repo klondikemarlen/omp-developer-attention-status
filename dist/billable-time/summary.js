@@ -5,7 +5,6 @@ export function summarizeBillableRecords(records) {
   for (const record of records) {
     const key = [
       record.clientId,
-      record.currency,
       record.ratePerHour,
       record.sourceKind,
       record.categoryId ?? "",
@@ -23,7 +22,6 @@ export function summarizeBillableRecords(records) {
               categoryId: record.categoryId,
               categoryLabel: record.categoryLabel,
             }),
-        currency: record.currency,
         ratePerHour: record.ratePerHour,
         sourceKind: record.sourceKind,
         count: 1,

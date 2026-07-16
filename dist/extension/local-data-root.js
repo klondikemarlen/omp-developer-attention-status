@@ -1,66 +1,31 @@
-import { chmod, lstat, mkdir, rename } from "node:fs/promises";
+import { chmod, lstat, mkdir, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 
 const ompDataRoot = path.join(homedir(), ".omp");
 const legacyDataRoot = path.join(ompDataRoot, "developer-attention-status");
 const projectTimeDataRoot = path.join(ompDataRoot, "project-time");
+const cadOnlyMarker = ".cad-only";
 export function defaultProjectTimeDataRoot() {
   return projectTimeDataRoot;
 }
 
 export async function prepareProjectTimeDataRoot(
   rootPath = projectTimeDataRoot,
-) {
-  await mkdir(rootPath, { recursive: true, mode: 0o700 });
-  await chmod(rootPath, 0o700);
-}
-
-export async function migrateProjectTimeDataRoot(
   oldRoot = legacyDataRoot,
-  newRoot = projectTimeDataRoot,
-  oldSpreadLedgerPath = path.join(
-    path.dirname(oldRoot),
-    "developer-cost-status",
-    "spread-billing.json",
-  ),
+  oldSpreadLedgerDirectory = path.join(ompDataRoot, "developer-cost-status"),
 ) {
-  const oldRootExists = await exists(oldRoot);
-  const newRootExists = await exists(newRoot);
-  const oldSpreadLedgerExists = await exists(oldSpreadLedgerPath);
-  const newSpreadLedgerPath = path.join(newRoot, "spread-billing.json");
-  if (oldRootExists && newRootExists) {
-    throw new Error(
-      `Project Time data migration stopped because both ${oldRoot} and ${newRoot} exist. Move or archive one directory before restarting OMP.`,
-    );
+  const markerPath = path.join(rootPath, cadOnlyMarker);
+  if (!(await exists(markerPath))) {
+    await Promise.all([
+      rm(rootPath, { recursive: true, force: true }),
+      rm(oldRoot, { recursive: true, force: true }),
+      rm(oldSpreadLedgerDirectory, { recursive: true, force: true }),
+    ]);
+    await mkdir(rootPath, { recursive: true, mode: 0o700 });
+    await writeFile(markerPath, "cad-only\n", { mode: 0o600 });
   }
-  if (
-    oldSpreadLedgerExists &&
-    ((await exists(newSpreadLedgerPath)) ||
-      (await exists(path.join(oldRoot, "spread-billing.json"))))
-  ) {
-    throw new Error(
-      `Project Time data migration stopped because both ${oldSpreadLedgerPath} and ${newSpreadLedgerPath} exist. Move or archive one file before restarting OMP.`,
-    );
-  }
-  if (oldRootExists) await renameRoot(oldRoot, newRoot);
-  if (oldSpreadLedgerExists && (await exists(newSpreadLedgerPath))) {
-    throw new Error(
-      `Project Time data migration stopped because both ${oldSpreadLedgerPath} and ${newSpreadLedgerPath} exist. Move or archive one file before restarting OMP.`,
-    );
-  }
-  if (!oldSpreadLedgerExists) return;
-  await mkdir(newRoot, { recursive: true, mode: 0o700 });
-  await renameRoot(oldSpreadLedgerPath, newSpreadLedgerPath);
-}
-
-async function renameRoot(oldPath, newPath) {
-  try {
-    await rename(oldPath, newPath);
-  } catch (error) {
-    if (error.code === "ENOENT" && (await exists(newPath))) return;
-    throw error;
-  }
+  await chmod(rootPath, 0o700);
 }
 
 async function exists(filePath) {

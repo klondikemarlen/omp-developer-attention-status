@@ -1,11 +1,9 @@
 import { positiveRateSchema } from "@/billable-time/domain/rate.js"
-import { currencyInputSchema } from "@/billable-time/domain/currency.js"
 import { normalizeBillableRepository } from "@/billable-time/domain/repository.js"
 import { z } from "@/vendor/zod.js"
 
 const clientSchema = z.object({
   label: z.string().trim().min(1),
-  currency: currencyInputSchema,
   attentionRatePerHour: positiveRateSchema,
   aiRatePerHour: positiveRateSchema,
 })
