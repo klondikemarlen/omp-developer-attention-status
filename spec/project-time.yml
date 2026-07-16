@@ -82,7 +82,7 @@ non_requirements:
   - id: no_model_cost_replacement
     description: This plugin does not replace OMP model/tool usage cost; it adds developer-time cost.
   - id: no_inline_status_until_omp_support
-    description: Current OMP plugin status uses ctx.ui.setStatus and renders on the hook-status line unless OMP adds plugin-defined inline status segments.
+    description: Project Time uses ctx.ui.setStatus on OMP's separate hook-status lines; OMP 17.0.1 or newer renders each enabled extension's keyed status independently, but does not provide plugin-defined inline status segments.
   - id: no_inferred_corrections
     description: This plugin does not infer corrections, nudges, or outcomes from prompts; reliable correction telemetry requires richer OMP core signals.
   - id: no_inferred_billable_categories
