@@ -8,7 +8,7 @@ export type { DeveloperCostState } from "@/billing/state/model.js"
 export { emptyDeveloperCostState } from "@/billing/state/empty.js"
 export { parseDeveloperCostState, serializeDeveloperCostState } from "@/billing/state/parser.js"
 export { displayedDeveloperCost } from "@/billing/presentation/displayed-cost.js"
-export { formatDeveloperCost } from "@/billing/presentation/format-cost.js"
+export { formatCadAmount, formatDeveloperCost } from "@/billing/presentation/format-cost.js"
 export { recordDeveloperPrompt } from "@/billing/operations/record-prompt.js"
 export { settleDeveloperCostState } from "@/billing/operations/settle-state.js"
 export {

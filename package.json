@@ -77,6 +77,11 @@
         "default": "dev",
         "description": "Lowercase suffix shown in the status line, such as dev."
       },
+      "locale": {
+        "type": "string",
+        "default": "en-CA",
+        "description": "BCP 47 locale used to format Canadian-dollar amounts."
+      },
       "billableTime": {
         "type": "string",
         "default": "{}",

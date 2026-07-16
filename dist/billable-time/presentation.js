@@ -1,28 +1,33 @@
-import Big from "../vendor/big.js";
+import { formatCadAmount } from "../billing/presentation/format-cost.js";
 
-export function formatBillableAmount(amount) {
-  return `CA$${Big(amount).toFixed(2)}`;
+export function formatBillableAmount(amount, locale) {
+  return formatCadAmount(amount, locale);
 }
 
-export function billableSummaryText(summaries) {
+export function billableSummaryText(summaries, locale) {
   if (summaries.length === 0) return "No billable time recorded.";
   return summaries
     .map((summary) => {
-      const amount = formatBillableAmount(summary.amount);
+      const amount = formatBillableAmount(summary.amount, locale);
+      const rate = formatBillableAmount(summary.ratePerHour, locale);
       const category =
         summary.categoryLabel === undefined
           ? ""
           : ` / ${summary.categoryLabel}`;
-      return `${summary.clientLabel}${category}: ${summary.sourceKind} ${summary.count} units, ${summary.durationMs}ms @ CA$${summary.ratePerHour}/h = ${amount}`;
+      return `${summary.clientLabel}${category}: ${summary.sourceKind} ${summary.count} units, ${summary.durationMs}ms @ ${rate}/h = ${amount}`;
     })
     .join("\n");
 }
 
-export function billableWorkEntryPreview(entries) {
-  return JSON.stringify(entries.map(workEntryPreview), null, 2);
+export function billableWorkEntryPreview(entries, locale) {
+  return JSON.stringify(
+    entries.map((entry) => workEntryPreview(entry, locale)),
+    null,
+    2,
+  );
 }
 
-function workEntryPreview(entry) {
+function workEntryPreview(entry, locale) {
   const shared = {
     client_id: entry.clientId,
     client_label: entry.clientLabel,
@@ -30,7 +35,7 @@ function workEntryPreview(entry) {
     project_name: entry.projectName,
     source_kind: entry.sourceKind,
     duration_ms: entry.durationMs,
-    rate_per_hour: entry.ratePerHour,
+    rate_per_hour: formatBillableAmount(entry.ratePerHour, locale),
     description: entry.description,
     ...(entry.categoryId === undefined || entry.categoryLabel === undefined
       ? {}

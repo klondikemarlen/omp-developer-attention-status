@@ -26,7 +26,7 @@ export function clearStatus(ctx: ExtensionContext): void {
 }
 
 export function statusText(state: DeveloperCostState, config: DeveloperCostConfig): string {
-  const text = formatDeveloperCost(displayedDeveloperCost(state))
+  const text = formatDeveloperCost(displayedDeveloperCost(state), config.locale)
 
   return `${text} (${config.label})`
 }

@@ -172,7 +172,7 @@ test("renders provider-neutral preview entries with separate source clocks", asy
     await recorder.recordTurnEnd("session", startedAtMs + 90_000)
     await recorder.recordDescription(description)
 
-    const preview = JSON.parse(billableWorkEntryPreview(await recorder.workEntries()))
+    const preview = JSON.parse(billableWorkEntryPreview(await recorder.workEntries(), "en-CA"))
 
     assert.deepEqual(preview, [
       {
@@ -182,7 +182,7 @@ test("renders provider-neutral preview entries with separate source clocks", asy
         project_name: "omp-project-time",
         source_kind: "attention",
         duration_ms: 300_000,
-        rate_per_hour: "120",
+        rate_per_hour: "CAD\u00a0120.00",
         description: "Implement notification suppression",
         emitted_at_ms: startedAtMs,
       },
@@ -193,7 +193,7 @@ test("renders provider-neutral preview entries with separate source clocks", asy
         project_name: "omp-project-time",
         source_kind: "ai",
         duration_ms: 90_000,
-        rate_per_hour: "30",
+        rate_per_hour: "CAD\u00a030.00",
         description: "Implement notification suppression",
         started_at_ms: startedAtMs,
         ended_at_ms: startedAtMs + 90_000,
@@ -248,7 +248,7 @@ test("snapshots configured categories in records, summaries, and previews", asyn
         amount: "0.75",
       },
     ])
-    const preview = JSON.parse(billableWorkEntryPreview(await recorder.workEntries()))
+    const preview = JSON.parse(billableWorkEntryPreview(await recorder.workEntries(), "en-CA"))
     assert.deepEqual(preview.map((entry: { category_id: string; category_label: string }) => ({
       categoryId: entry.category_id,
       categoryLabel: entry.category_label,

@@ -16,7 +16,10 @@ export function clearStatus(ctx) {
 }
 
 export function statusText(state, config) {
-  const text = formatDeveloperCost(displayedDeveloperCost(state));
+  const text = formatDeveloperCost(
+    displayedDeveloperCost(state),
+    config.locale,
+  );
   return `${text} (${config.label})`;
 }
 

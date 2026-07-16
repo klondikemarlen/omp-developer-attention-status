@@ -11,6 +11,7 @@ import {
   type DeveloperCostState,
 } from "@/billing/index.js"
 import { MS_PER_SECOND } from "@/billing/calculation/time-constants.js"
+import { DEFAULT_LOCALE } from "@/billing/config/defaults.js"
 import { SpreadBillingLedger } from "@/billing/infrastructure/spread-ledger.js"
 import { loadDeveloperCostConfig } from "@/config/loader/load-developer-cost-config.js"
 import { AutomaticTimeLogRecorder } from "@/time-log/recorder.js"
@@ -192,32 +193,31 @@ export class ProjectTimeRuntime {
       return
     }
 
-    if (command === "billable preview") {
+    if (command === "billable preview" || command === "billable") {
+      const locale = await this.loadConfig(ctx.cwd)
+        .then((config) => config.locale, () => DEFAULT_LOCALE)
+
       try {
-        const entries = await this.billableTimeRecorder.workEntries()
-        ctx.ui.notify(billableWorkEntryPreview(entries), "info")
+        if (command === "billable preview") {
+          const entries = await this.billableTimeRecorder.workEntries()
+          ctx.ui.notify(billableWorkEntryPreview(entries, locale), "info")
+        } else {
+          const summaries = await this.billableTimeRecorder.summaries()
+          ctx.ui.notify(billableSummaryText(summaries, locale), "info")
+        }
       } catch (error) {
         ctx.ui.notify(`Billable time error: ${errorMessage(error)}`, "error")
       }
       return
     }
 
-    if (command === "billable") {
-      try {
-        const summaries = await this.billableTimeRecorder.summaries()
-        ctx.ui.notify(billableSummaryText(summaries), "info")
-      } catch (error) {
-        ctx.ui.notify(`Billable time error: ${errorMessage(error)}`, "error")
-      }
-      return
-    }
-
-    if (command === "history") {
-      await this.showHistory(ctx)
-      return
-    }
     const config = await this.loadConfigForStatus(ctx)
     if (config === undefined) return
+
+    if (command === "history") {
+      await this.showHistory(ctx, config)
+      return
+    }
     const sessionId = ctx.sessionManager.getSessionId()
     const nowMs = Date.now()
 
@@ -239,9 +239,7 @@ export class ProjectTimeRuntime {
     ctx.ui.notify(message, "info")
   }
 
-  private async showHistory(ctx: ExtensionContext): Promise<void> {
-    const config = await this.loadConfigForStatus(ctx)
-    if (config === undefined) return
+  private async showHistory(ctx: ExtensionContext, config: DeveloperCostConfig): Promise<void> {
 
     try {
       const sessionId = ctx.sessionManager.getSessionId()

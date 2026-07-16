@@ -7,6 +7,7 @@ export type DeveloperCostConfig = {
   activeWindowMinutes: number
   refreshIntervalSeconds: number
   label: string
+  locale: string
   billableTime: BillableTimeConfig
 }
 
@@ -17,5 +18,6 @@ export type DeveloperCostOptions = {
   activeWindowMinutes?: unknown
   refreshIntervalSeconds?: unknown
   label?: unknown
+  locale?: unknown
   billableTime?: unknown
 }
