@@ -41,6 +41,30 @@ type Runtime = {
   statusText?: string
 }
 
+test("prepares the default data root when only some storage paths are overridden", () => {
+  const pi = {
+    appendEntry() {},
+    on() {},
+    registerCommand() {},
+  } as never
+  const partialOverride = new ProjectTimeRuntime(pi, {
+    ledgerPath: temporaryLedgerPath(),
+    timeLogPath: temporaryLedgerPath(),
+  })
+  const fullOverride = new ProjectTimeRuntime(pi, {
+    ledgerPath: temporaryLedgerPath(),
+    timeLogPath: temporaryLedgerPath(),
+    billableTimePath: temporaryLedgerPath(),
+  })
+
+  // Inspect construction-only storage routing without invoking a session.
+  const partialStorageRouting = partialOverride as unknown as { usesDefaultDataRoot: boolean }
+  const fullStorageRouting = fullOverride as unknown as { usesDefaultDataRoot: boolean }
+
+  assert.equal(partialStorageRouting.usesDefaultDataRoot, true)
+  assert.equal(fullStorageRouting.usesDefaultDataRoot, false)
+})
+
 test("persists one attention count for a top-level prompt", async () => {
   const start = Date.UTC(2026, 0, 1, 12, 0, 0)
   const runtime = createExtensionRuntime()

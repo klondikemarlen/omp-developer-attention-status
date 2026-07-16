@@ -91,9 +91,9 @@ export class ProjectTimeRuntime {
     const dataRoot = defaultProjectTimeDataRoot();
     const usesDefaultDataRoot =
       options.prepareLocalData !== undefined ||
-      (options.ledgerPath === undefined &&
-        options.timeLogPath === undefined &&
-        options.billableTimePath === undefined);
+      options.ledgerPath === undefined ||
+      options.timeLogPath === undefined ||
+      options.billableTimePath === undefined;
     const ledger = new SpreadBillingLedger(
       options.ledgerPath ?? path.join(dataRoot, "spread-billing.json"),
     );

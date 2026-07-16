@@ -99,11 +99,10 @@ export class ProjectTimeRuntime {
     this.pi = pi
     this.loadConfig = options.loadConfig ?? loadDeveloperCostConfig
     const dataRoot = defaultProjectTimeDataRoot()
-    const usesDefaultDataRoot = options.prepareLocalData !== undefined || (
-      options.ledgerPath === undefined
-      && options.timeLogPath === undefined
-      && options.billableTimePath === undefined
-    )
+    const usesDefaultDataRoot = options.prepareLocalData !== undefined
+      || options.ledgerPath === undefined
+      || options.timeLogPath === undefined
+      || options.billableTimePath === undefined
     const ledger = new SpreadBillingLedger(options.ledgerPath ?? path.join(dataRoot, "spread-billing.json"))
     this.timeLogRecorder = new AutomaticTimeLogRecorder(
       options.timeLogPath ?? path.join(dataRoot, "time-log.json"),
