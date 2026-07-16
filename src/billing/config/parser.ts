@@ -4,6 +4,7 @@ import {
   DEFAULT_ACTIVE_WINDOW_MINUTES,
   DEFAULT_HOURS_PER_WEEK,
   DEFAULT_LABEL,
+  DEFAULT_LOCALE,
   DEFAULT_MONTHLY_SALARY,
   DEFAULT_REFRESH_INTERVAL_SECONDS,
   DEFAULT_WEEKS_PER_YEAR,
@@ -20,6 +21,7 @@ export function parseDeveloperCostConfig(options?: DeveloperCostOptions): Develo
   const rawRefreshIntervalSeconds =
     options?.refreshIntervalSeconds ?? DEFAULT_REFRESH_INTERVAL_SECONDS
   const rawLabel = options?.label ?? DEFAULT_LABEL
+  const rawLocale = options?.locale ?? DEFAULT_LOCALE
   const rawBillableTime = options?.billableTime
 
   const parsedMonthlySalary = parsePositiveNumber(rawMonthlySalary)
@@ -39,6 +41,7 @@ export function parseDeveloperCostConfig(options?: DeveloperCostOptions): Develo
 
   const parsedLabel = parseNonEmptyString(rawLabel)
   const label = parsedLabel?.toLowerCase() ?? DEFAULT_LABEL
+  const locale = parseNumberFormatLocale(rawLocale)
 
   const billableTime = parseBillableTimeConfig(rawBillableTime)
 
@@ -49,6 +52,7 @@ export function parseDeveloperCostConfig(options?: DeveloperCostOptions): Develo
     activeWindowMinutes,
     refreshIntervalSeconds,
     label,
+    locale,
     billableTime,
   }
 }
@@ -58,7 +62,12 @@ export function parseStoredDeveloperCostConfig(value: unknown): DeveloperCostCon
 
   const candidate = value as Record<string, unknown>
   const { billableTime: _billableTime, ...scalarOptions } = candidate
-  const config = parseDeveloperCostConfig(scalarOptions)
+  let config: DeveloperCostConfig
+  try {
+    config = parseDeveloperCostConfig(scalarOptions)
+  } catch {
+    return undefined
+  }
   if (
     candidate.monthlySalary !== config.monthlySalary ||
     candidate.hoursPerWeek !== config.hoursPerWeek ||
@@ -70,7 +79,25 @@ export function parseStoredDeveloperCostConfig(value: unknown): DeveloperCostCon
   }
 
   const label = parseNonEmptyString(candidate.label)?.toLowerCase()
-  return label === config.label ? config : undefined
+  return (
+    label === config.label
+    && (candidate.locale === undefined || candidate.locale === config.locale)
+  )
+    ? config
+    : undefined
+}
+
+function parseNumberFormatLocale(value: unknown): string {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error("Project Time locale must be a BCP 47 locale supported by Intl.NumberFormat.")
+  }
+
+  try {
+    const [locale] = Intl.NumberFormat.supportedLocalesOf([value.trim()])
+    if (locale !== undefined) return locale
+  } catch {}
+
+  throw new Error("Project Time locale must be a BCP 47 locale supported by Intl.NumberFormat.")
 }
 
 export default parseDeveloperCostConfig

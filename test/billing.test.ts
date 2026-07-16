@@ -36,6 +36,7 @@ test("parses the default configuration", () => {
   assert.equal(config.activeWindowMinutes, 5)
   assert.equal(config.refreshIntervalSeconds, 15)
   assert.equal(config.label, "dev")
+  assert.equal(config.locale, "en-CA")
 })
 
 test("defaults empty and invalid configuration values", () => {
@@ -175,6 +176,7 @@ test("starts a new spell after more than five idle minutes", () => {
   assert.equal(settled.totalCost.toString(), "6.25")
 })
 
-test("formats the accumulated cost", () => {
-  assert.equal(formatDeveloperCost(Big("3.125")), "CA$3.13")
+test("formats CAD amounts with the configured locale", () => {
+  assert.equal(formatDeveloperCost(Big("3.125"), config.locale), "CAD\u00a03.13")
+  assert.equal(formatDeveloperCost(Big("3.125"), "fr-CA"), "3,13\u00a0CAD")
 })
