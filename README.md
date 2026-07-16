@@ -61,24 +61,31 @@ Billing and attention behavior:
 
 ## Defaults
 
-The plugin ships with simple CAD defaults:
+The plugin ships with clear annual-compensation defaults:
 
-- `monthlySalary`: `6500`
-- `hoursPerWeek`: `40`
-- `weeksPerYear`: `52`
+- `annualGrossSalary`: `78000`
+- `workingHoursPerWeek`: `40`
+- `workingWeeksPerYear`: `52`
 - `activeWindowMinutes`: `5`
 - `refreshIntervalSeconds`: `15`
 - `label`: `dev`
 - `locale`: `en-CA`
+- `billablePolicies`: `disabled`
 
-That yields a default 5-minute developer cost of about `CAD 3.13`, or about `CAD 0.16` per active
-15-second refresh. If you work `49` weeks per year instead, the same defaults produce about
-`CAD 3.32` per 5-minute window.
+Annual gross salary is paid across the calendar year. Expected working weeks account for paid time
+off when Project Time calculates the **effective paid hourly cost**. This is not a fully loaded
+employer cost; benefits, employer contributions, equipment, and overhead need a separately supplied
+annual employer-cost value.
+
+That yields a default effective paid hourly cost of `CAD 37.50`, a 5-minute developer cost of about
+`CAD 3.13`, and about `CAD 0.16` per active 15-second refresh. If you work `49` weeks per year
+instead, the same annual gross salary produces about `CAD 3.32` per 5-minute window.
 
 ## Formula
 
 ```text
-activeCost = monthlySalary × 12 / (hoursPerWeek × weeksPerYear × 60 × 60 × 1000) × activeMilliseconds
+effectivePaidHourlyCost = annualGrossSalary / (workingHoursPerWeek × workingWeeksPerYear)
+activeCost = effectivePaidHourlyCost / (60 × 60 × 1000) × activeMilliseconds
 sharedSessionCost = activeCost / activeTopLevelSessionCount for each overlapping interval
 refreshCost = activeCost where activeMilliseconds = refreshIntervalSeconds × 1000
 windowRate = activeCost where activeMilliseconds = activeWindowMinutes × 60 × 1000
@@ -87,25 +94,26 @@ windowRate = activeCost where activeMilliseconds = activeWindowMinutes × 60 × 
 Default example:
 
 ```text
-monthlySalary = 6500
-hoursPerWeek = 40
-weeksPerYear = 52
+annualGrossSalary = 78000
+workingHoursPerWeek = 40
+workingWeeksPerYear = 52
 activeWindowMinutes = 5
 refreshIntervalSeconds = 15
 
-15-second refresh = CAD 0.16
-5-minute active window = CAD 3.13
+effective paid hourly cost = CAD 37.50
+15-second refresh = CAD 0.16
+5-minute active window = CAD 3.13
 ```
 
 49-week example:
 
 ```text
-monthlySalary = 6500
-hoursPerWeek = 40
-weeksPerYear = 49
+annualGrossSalary = 78000
+workingHoursPerWeek = 40
+workingWeeksPerYear = 49
 activeWindowMinutes = 5
 
-5-minute active window = CAD 3.32
+5-minute active window = CAD 3.32
 ```
 
 ## Install
@@ -155,17 +163,17 @@ Inspect current settings:
 omp plugin config list omp-project-time
 ```
 
-Set a custom salary:
+Set annual gross salary:
 
 ```bash
-omp plugin config set omp-project-time monthlySalary 9000
+omp plugin config set omp-project-time annualGrossSalary 90000
 ```
 
-Set custom working time assumptions:
+Set expected working time:
 
 ```bash
-omp plugin config set omp-project-time hoursPerWeek 37.5
-omp plugin config set omp-project-time weeksPerYear 49
+omp plugin config set omp-project-time workingHoursPerWeek 37.5
+omp plugin config set omp-project-time workingWeeksPerYear 49
 omp plugin config set omp-project-time activeWindowMinutes 5
 omp plugin config set omp-project-time refreshIntervalSeconds 10
 omp plugin config set omp-project-time label dev
@@ -176,40 +184,45 @@ Setting changes are picked up on the next status refresh while a session is acti
 default settings, that means within about 15 seconds. You only need `/reload-plugins` or a
 restart after changing plugin code or install state.
 
+Use `/project-time settings` to display the configured annual gross salary, working-time assumptions,
+derived effective paid hourly cost, billable-policy state, and configured attention and AI rates
+locally. It never writes these settings to a ledger or external service.
+
 `locale` must be a BCP 47 locale supported by `Intl.NumberFormat`. The default `en-CA` renders
 unambiguous CAD codes (for example, `CAD 3.13`); `fr-CA` renders `3,13 CAD`. This setting changes
 only presentation—stored developer and billable values remain decimal scalars.
 
 ### Billable clocks
 
-Configure a client policy with positive CAD hourly rates. Setting `defaultClient` makes the active
-Git repository the billable project target; its project name defaults to the repository name.
-`projects` optionally replaces that displayed name, while `categories` assigns a provider-neutral
-category ID and label to new records for a specific normalized `github.com/owner/repository`
-identity. `repositories` remains available when a repository needs a client policy other than
-`defaultClient`.
+Configure billable policies only when you need separately rated attention and AI clocks. The plugin
+uses the `billablePolicies` structured setting and shows `disabled` by default. Setting
+`defaultClient` makes the active Git repository the billable project target; its project name defaults
+to the repository name. `projects` optionally replaces that displayed name, while `categories` assigns
+a provider-neutral category ID and label to new records for a specific normalized
+`github.com/owner/repository` identity. `repositories` remains available when a repository needs a
+client policy other than `defaultClient`.
 
 ```json
 {
-  "defaultClient": "icefog",
+  "defaultClient": "acme",
   "clients": {
-    "icefog": {
-      "label": "Ice Fog Analytics",
-      "attentionRatePerHour": "120",
-      "aiRatePerHour": "30"
+    "acme": {
+      "label": "Acme",
+      "attentionRatePerHour": "100",
+      "aiRatePerHour": "25"
     }
   },
   "projects": {
-    "github.com/icefoganalytics/wrap": "WRAP Support"
+    "github.com/acme/project": "Example Project"
   },
   "categories": {
-    "github.com/icefoganalytics/wrap": {
+    "github.com/acme/project": {
       "id": "programming",
       "label": "Programming"
     }
   },
   "repositories": {
-    "github.com/icefoganalytics/other-project": "icefog"
+    "github.com/acme/other-project": "acme"
   }
 }
 ```
@@ -229,16 +242,21 @@ exposes title generation, it records a bounded generated description; otherwise 
 Raw prompt text, transcripts, tool output, artifacts,
 and model metadata are never persisted.
 
-Configure it as one JSON string:
+OMP plugin settings support scalar values, so `billablePolicies` is one clearly labelled structured
+JSON string:
 
 ```bash
-omp plugin config set omp-project-time billableTime '{"defaultClient":"icefog","clients":{"icefog":{"label":"Ice Fog Analytics","attentionRatePerHour":"120","aiRatePerHour":"30"}},"projects":{"github.com/icefoganalytics/wrap":"WRAP Support"},"categories":{"github.com/icefoganalytics/wrap":{"id":"programming","label":"Programming"}}}'
+omp plugin config set omp-project-time billablePolicies '{"defaultClient":"acme","clients":{"acme":{"label":"Acme","attentionRatePerHour":"100","aiRatePerHour":"25"}},"projects":{"github.com/acme/project":"Example Project"},"categories":{"github.com/acme/project":{"id":"programming","label":"Programming"}}}'
 ```
+
+Existing `monthlySalary`, `hoursPerWeek`, `weeksPerYear`, and `billableTime` settings continue to
+load for this release. Set the clearer names above for new configuration.
 
 ## Status command
 
 ```text
 /project-time
+/project-time settings
 /project-time summary
 /project-time billable
 /project-time billable preview
@@ -250,6 +268,8 @@ command are named `omp-project-time` and `/project-time`. The default command po
 dashboard with the current Git project, developer meter, billable-policy state, and every explicit
 command. `summary` reports its session id, project time cost, active time, prompt count, and the last
 prompt's age and timestamp. It does not infer corrections, nudges, or outcomes.
+`settings` shows local annual compensation, expected working time, the derived effective paid hourly
+cost, whether billable policies are configured, and each configured attention and AI rate.
 `billable` reports separately grouped attention-token and AI-interval units, durations, and
 snapshotted rates; its CAD rates and displayed amounts use the configured locale and round only at
 the presentation boundary. `billable preview` emits local provider-neutral JSON entries with client

@@ -1,54 +1,55 @@
 import { parseBillableTimeConfig } from "@/billable-time/config.js"
+import { MONTHS_PER_YEAR } from "@/billing/calculation/time-constants.js"
 
 import {
   DEFAULT_ACTIVE_WINDOW_MINUTES,
-  DEFAULT_HOURS_PER_WEEK,
+  DEFAULT_ANNUAL_GROSS_SALARY,
   DEFAULT_LABEL,
   DEFAULT_LOCALE,
-  DEFAULT_MONTHLY_SALARY,
   DEFAULT_REFRESH_INTERVAL_SECONDS,
-  DEFAULT_WEEKS_PER_YEAR,
+  DEFAULT_WORKING_HOURS_PER_WEEK,
+  DEFAULT_WORKING_WEEKS_PER_YEAR,
 } from "@/billing/config/defaults.js"
 import type { DeveloperCostConfig, DeveloperCostOptions } from "@/billing/config/model.js"
 import { parseNonEmptyString } from "@/utils/parse-non-empty-string.js"
 import { parsePositiveNumber } from "@/utils/parse-positive-number.js"
 
 export function parseDeveloperCostConfig(options?: DeveloperCostOptions): DeveloperCostConfig {
-  const rawMonthlySalary = options?.monthlySalary ?? DEFAULT_MONTHLY_SALARY
-  const rawHoursPerWeek = options?.hoursPerWeek ?? DEFAULT_HOURS_PER_WEEK
-  const rawWeeksPerYear = options?.weeksPerYear ?? DEFAULT_WEEKS_PER_YEAR
+  const legacyMonthlySalary = parsePositiveNumber(options?.monthlySalary)
+  const rawAnnualGrossSalary = options?.annualGrossSalary
+    ?? (legacyMonthlySalary === undefined
+      ? DEFAULT_ANNUAL_GROSS_SALARY
+      : legacyMonthlySalary * MONTHS_PER_YEAR)
+  const rawWorkingHoursPerWeek = options?.workingHoursPerWeek
+    ?? options?.hoursPerWeek
+    ?? DEFAULT_WORKING_HOURS_PER_WEEK
+  const rawWorkingWeeksPerYear = options?.workingWeeksPerYear
+    ?? options?.weeksPerYear
+    ?? DEFAULT_WORKING_WEEKS_PER_YEAR
   const rawActiveWindowMinutes = options?.activeWindowMinutes ?? DEFAULT_ACTIVE_WINDOW_MINUTES
   const rawRefreshIntervalSeconds =
     options?.refreshIntervalSeconds ?? DEFAULT_REFRESH_INTERVAL_SECONDS
   const rawLabel = options?.label ?? DEFAULT_LABEL
   const rawLocale = options?.locale ?? DEFAULT_LOCALE
-  const rawBillableTime = options?.billableTime
+  const rawBillablePolicies = options?.billablePolicies ?? options?.billableTime
 
-  const parsedMonthlySalary = parsePositiveNumber(rawMonthlySalary)
-  const monthlySalary = parsedMonthlySalary ?? DEFAULT_MONTHLY_SALARY
-
-  const parsedHoursPerWeek = parsePositiveNumber(rawHoursPerWeek)
-  const hoursPerWeek = parsedHoursPerWeek ?? DEFAULT_HOURS_PER_WEEK
-
-  const parsedWeeksPerYear = parsePositiveNumber(rawWeeksPerYear)
-  const weeksPerYear = parsedWeeksPerYear ?? DEFAULT_WEEKS_PER_YEAR
-
-  const parsedActiveWindowMinutes = parsePositiveNumber(rawActiveWindowMinutes)
-  const activeWindowMinutes = parsedActiveWindowMinutes ?? DEFAULT_ACTIVE_WINDOW_MINUTES
-
-  const parsedRefreshIntervalSeconds = parsePositiveNumber(rawRefreshIntervalSeconds)
-  const refreshIntervalSeconds = parsedRefreshIntervalSeconds ?? DEFAULT_REFRESH_INTERVAL_SECONDS
-
-  const parsedLabel = parseNonEmptyString(rawLabel)
-  const label = parsedLabel?.toLowerCase() ?? DEFAULT_LABEL
+  const annualGrossSalary = parsePositiveNumber(rawAnnualGrossSalary) ?? DEFAULT_ANNUAL_GROSS_SALARY
+  const workingHoursPerWeek =
+    parsePositiveNumber(rawWorkingHoursPerWeek) ?? DEFAULT_WORKING_HOURS_PER_WEEK
+  const workingWeeksPerYear =
+    parsePositiveNumber(rawWorkingWeeksPerYear) ?? DEFAULT_WORKING_WEEKS_PER_YEAR
+  const activeWindowMinutes =
+    parsePositiveNumber(rawActiveWindowMinutes) ?? DEFAULT_ACTIVE_WINDOW_MINUTES
+  const refreshIntervalSeconds =
+    parsePositiveNumber(rawRefreshIntervalSeconds) ?? DEFAULT_REFRESH_INTERVAL_SECONDS
+  const label = parseNonEmptyString(rawLabel)?.toLowerCase() ?? DEFAULT_LABEL
   const locale = parseNumberFormatLocale(rawLocale)
-
-  const billableTime = parseBillableTimeConfig(rawBillableTime)
+  const billableTime = parseBillableTimeConfig(rawBillablePolicies)
 
   return {
-    monthlySalary,
-    hoursPerWeek,
-    weeksPerYear,
+    annualGrossSalary,
+    workingHoursPerWeek,
+    workingWeeksPerYear,
     activeWindowMinutes,
     refreshIntervalSeconds,
     label,
@@ -61,19 +62,25 @@ export function parseStoredDeveloperCostConfig(value: unknown): DeveloperCostCon
   if (typeof value !== "object" || value === null) return undefined
 
   const candidate = value as Record<string, unknown>
-  const { billableTime: _billableTime, ...scalarOptions } = candidate
+  const { billablePolicies: _billablePolicies, billableTime: _billableTime, ...scalarOptions } = candidate
   let config: DeveloperCostConfig
   try {
     config = parseDeveloperCostConfig(scalarOptions)
   } catch {
     return undefined
   }
+  const legacyMonthlySalary = parsePositiveNumber(candidate.monthlySalary)
+  const annualGrossSalary = candidate.annualGrossSalary
+    ?? (legacyMonthlySalary === undefined ? undefined : legacyMonthlySalary * MONTHS_PER_YEAR)
+  const workingHoursPerWeek = candidate.workingHoursPerWeek ?? candidate.hoursPerWeek
+  const workingWeeksPerYear = candidate.workingWeeksPerYear ?? candidate.weeksPerYear
+
   if (
-    candidate.monthlySalary !== config.monthlySalary ||
-    candidate.hoursPerWeek !== config.hoursPerWeek ||
-    candidate.weeksPerYear !== config.weeksPerYear ||
-    candidate.activeWindowMinutes !== config.activeWindowMinutes ||
-    candidate.refreshIntervalSeconds !== config.refreshIntervalSeconds
+    annualGrossSalary !== config.annualGrossSalary
+    || workingHoursPerWeek !== config.workingHoursPerWeek
+    || workingWeeksPerYear !== config.workingWeeksPerYear
+    || candidate.activeWindowMinutes !== config.activeWindowMinutes
+    || candidate.refreshIntervalSeconds !== config.refreshIntervalSeconds
   ) {
     return undefined
   }

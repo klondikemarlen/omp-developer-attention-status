@@ -1,4 +1,7 @@
-export { costForActiveMs } from "../billing/calculation/cost-for-active-time.js";
+export {
+  costForActiveMs,
+  effectivePaidHourlyCost,
+} from "../billing/calculation/cost-for-active-time.js";
 export {
   parseDeveloperCostConfig,
   parseStoredDeveloperCostConfig,

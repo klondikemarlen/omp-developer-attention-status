@@ -7,6 +7,7 @@ import defaultCostForActiveMs from "../src/billing/calculation/cost-for-active-t
 
 import {
   costForActiveMs,
+  effectivePaidHourlyCost,
   displayedDeveloperCost,
   emptyDeveloperCostState,
   formatDeveloperCost,
@@ -26,13 +27,14 @@ const refreshMs = config.refreshIntervalSeconds * 1_000
 test("exports billing modules through the billing public surface", () => {
   assert.equal(billing.costForActiveMs, costForActiveMs)
   assert.equal(defaultCostForActiveMs, costForActiveMs)
+  assert.equal(billing.effectivePaidHourlyCost, effectivePaidHourlyCost)
   assert.equal(billing.parseDeveloperCostConfig, parseDeveloperCostConfig)
 })
 
 test("parses the default configuration", () => {
-  assert.equal(config.monthlySalary, 6_500)
-  assert.equal(config.hoursPerWeek, 40)
-  assert.equal(config.weeksPerYear, 52)
+  assert.equal(config.annualGrossSalary, 78_000)
+  assert.equal(config.workingHoursPerWeek, 40)
+  assert.equal(config.workingWeeksPerYear, 52)
   assert.equal(config.activeWindowMinutes, 5)
   assert.equal(config.refreshIntervalSeconds, 15)
   assert.equal(config.label, "dev")
@@ -41,23 +43,50 @@ test("parses the default configuration", () => {
 
 test("defaults empty and invalid configuration values", () => {
   const defaultedConfig = parseDeveloperCostConfig({
-    monthlySalary: 0,
-    hoursPerWeek: -1,
-    weeksPerYear: "",
+    annualGrossSalary: 0,
+    workingHoursPerWeek: -1,
+    workingWeeksPerYear: "",
     activeWindowMinutes: undefined,
     refreshIntervalSeconds: Number.NaN,
     label: "",
   })
 
-  assert.equal(defaultedConfig.monthlySalary, 6_500)
-  assert.equal(defaultedConfig.hoursPerWeek, 40)
-  assert.equal(defaultedConfig.weeksPerYear, 52)
+  assert.equal(defaultedConfig.annualGrossSalary, 78_000)
+  assert.equal(defaultedConfig.workingHoursPerWeek, 40)
+  assert.equal(defaultedConfig.workingWeeksPerYear, 52)
   assert.equal(defaultedConfig.activeWindowMinutes, 5)
   assert.equal(defaultedConfig.refreshIntervalSeconds, 15)
   assert.equal(defaultedConfig.label, "dev")
 })
 
 test("normalizes valid stored configuration and rejects invalid values", () => {
+  const stored = {
+    annualGrossSalary: 78_000,
+    workingHoursPerWeek: 40,
+    workingWeeksPerYear: 52,
+    activeWindowMinutes: 5,
+    refreshIntervalSeconds: 15,
+    label: " DEV ",
+  }
+
+  assert.equal(parseStoredDeveloperCostConfig(stored)?.label, "dev")
+  assert.equal(parseStoredDeveloperCostConfig({ ...stored, annualGrossSalary: 0 }), undefined)
+})
+
+test("loads former monthly salary settings as annual gross salary", () => {
+  const legacyConfig = parseDeveloperCostConfig({
+    monthlySalary: 6_500,
+    hoursPerWeek: 40,
+    weeksPerYear: 52,
+    billableTime: "{}",
+  })
+
+  assert.equal(legacyConfig.annualGrossSalary, 78_000)
+  assert.equal(legacyConfig.workingHoursPerWeek, 40)
+  assert.equal(legacyConfig.workingWeeksPerYear, 52)
+})
+
+test("loads former stored monthly configuration", () => {
   const stored = {
     monthlySalary: 6_500,
     hoursPerWeek: 40,
@@ -67,7 +96,7 @@ test("normalizes valid stored configuration and rejects invalid values", () => {
     label: " DEV ",
   }
 
-  assert.equal(parseStoredDeveloperCostConfig(stored)?.label, "dev")
+  assert.equal(parseStoredDeveloperCostConfig(stored)?.annualGrossSalary, 78_000)
   assert.equal(parseStoredDeveloperCostConfig({ ...stored, monthlySalary: 0 }), undefined)
 })
 
@@ -78,13 +107,24 @@ test("computes the five minute developer rate", () => {
 
 test("supports custom working weeks per year", () => {
   const customConfig = parseDeveloperCostConfig({
-    monthlySalary: 6_500,
-    hoursPerWeek: 40,
-    weeksPerYear: 49,
+    annualGrossSalary: 78_000,
+    workingHoursPerWeek: 40,
+    workingWeeksPerYear: 49,
     activeWindowMinutes: 5,
   })
 
   assert.equal(costForActiveMs(customConfig, windowMs).toFixed(2), "3.32")
+})
+
+test("derives effective paid hourly cost from annual compensation and working time", () => {
+  assert.equal(effectivePaidHourlyCost(config).toFixed(2), "37.50")
+})
+
+test("treats disabled billable policies as unconfigured", () => {
+  const configured = parseDeveloperCostConfig({ billablePolicies: "disabled" })
+
+  assert.equal(configured.billableTime.defaultClient, undefined)
+  assert.equal(configured.billableTime.clientsByRepository.size, 0)
 })
 
 test("keeps cost as a value until persistence mapping", () => {

@@ -24,6 +24,7 @@ import {
   clearStatus,
   dashboardText,
   historyText,
+  settingsText,
   summaryText,
   updateStatus,
 } from "../extension/status-presenter.js";
@@ -33,6 +34,11 @@ const PROJECT_TIME_COMMANDS = [
     value: "summary",
     label: "summary",
     description: "Show session cost, active time, and prompt count",
+  },
+  {
+    value: "settings",
+    label: "settings",
+    description: "Explain local cost and billable policy settings",
   },
   {
     value: "billable",
@@ -180,7 +186,7 @@ export class ProjectTimeRuntime {
       !PROJECT_TIME_COMMANDS.some(({ value }) => value === command)
     ) {
       ctx.ui.notify(
-        "Unknown Project Time command. Use summary, billable, billable preview, or history.",
+        "Unknown Project Time command. Use settings, summary, billable, billable preview, or history.",
         "error",
       );
       return;
@@ -207,6 +213,10 @@ export class ProjectTimeRuntime {
     if (config === undefined) return;
     if (command === "history") {
       await this.showHistory(ctx, config);
+      return;
+    }
+    if (command === "settings") {
+      ctx.ui.notify(settingsText(config), "info");
       return;
     }
     const sessionId = ctx.sessionManager.getSessionId();

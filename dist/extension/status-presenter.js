@@ -1,5 +1,7 @@
 import {
   displayedDeveloperCost,
+  effectivePaidHourlyCost,
+  formatCadAmount,
   formatDeveloperCost,
 } from "../billing/index.js";
 
@@ -23,16 +25,28 @@ export function statusText(state, config) {
   return `${text} (${config.label})`;
 }
 
+export function settingsText(config) {
+  return [
+    "Project Time settings",
+    `Annual gross salary: ${formatCadAmount(`${config.annualGrossSalary}`, config.locale)}`,
+    `Working time: ${config.workingHoursPerWeek}h/week × ${config.workingWeeksPerYear} weeks/year`,
+    `Effective paid hourly cost: ${formatCadAmount(effectivePaidHourlyCost(config), config.locale)}/h`,
+    `Billable policies: ${billablePoliciesStatus(config)}`,
+    ...configuredBillableClients(config).map(
+      (client) =>
+        `- ${client.label}: attention ${formatCadAmount(client.attentionRatePerHour, config.locale)}/h; AI ${formatCadAmount(client.aiRatePerHour, config.locale)}/h`,
+    ),
+  ].join("\n");
+}
+
 export function dashboardText(state, config, project) {
-  const billablePoliciesConfigured =
-    config.billableTime.defaultClient !== undefined ||
-    config.billableTime.clientsByRepository.size > 0;
+  const billablePoliciesConfigured = billablePoliciesStatus(config);
   return [
     "Project Time",
     `Project: ${project ?? "unavailable"}`,
     `Developer meter: ${statusText(state, config)}`,
-    `Billable policies: ${billablePoliciesConfigured ? "configured" : "not configured"}`,
-    "Commands: /project-time summary | /project-time billable | /project-time billable preview | /project-time history",
+    `Billable policies: ${billablePoliciesConfigured}`,
+    "Commands: /project-time settings | /project-time summary | /project-time billable | /project-time billable preview | /project-time history",
     "Tip: type /project-time followed by a space to choose a mode.",
   ].join("\n");
 }
@@ -95,6 +109,25 @@ export function summaryText(state, config, sessionId, nowMs) {
     `Prompt count: ${state.promptCount}`,
     lastPrompt,
   ].join("\n");
+}
+
+function billablePoliciesStatus(config) {
+  return config.billableTime.defaultClient !== undefined ||
+    config.billableTime.clientsByRepository.size > 0
+    ? "configured"
+    : "not configured";
+}
+
+function configuredBillableClients(config) {
+  const clients = new Map(
+    [...config.billableTime.clientsByRepository.values()].map((client) => [
+      client.id,
+      client,
+    ]),
+  );
+  const { defaultClient } = config.billableTime;
+  if (defaultClient !== undefined) clients.set(defaultClient.id, defaultClient);
+  return [...clients.values()];
 }
 
 function recordTimestamp(record) {

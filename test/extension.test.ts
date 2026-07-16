@@ -107,6 +107,11 @@ test("offers documented Project Time commands and rejects unsupported arguments"
       description: "Show session cost, active time, and prompt count",
     },
     {
+      value: "settings",
+      label: "settings",
+      description: "Explain local cost and billable policy settings",
+    },
+    {
       value: "billable",
       label: "billable",
       description: "Show locally recorded billable clocks",
@@ -132,7 +137,7 @@ test("offers documented Project Time commands and rejects unsupported arguments"
 
   await command.handler("unknown", createContext(runtime, { parentSession: undefined }) as never)
   assert.deepEqual(runtime.notifications, [{
-    message: "Unknown Project Time command. Use summary, billable, billable preview, or history.",
+    message: "Unknown Project Time command. Use settings, summary, billable, billable preview, or history.",
     type: "error",
   }])
 })
@@ -150,11 +155,58 @@ test("shows the active Git project in the default Project Time dashboard", async
         "Project: Project",
         "Developer meter: CAD\u00a00.00 (dev)",
         "Billable policies: not configured",
-        "Commands: /project-time summary | /project-time billable | /project-time billable preview | /project-time history",
+        "Commands: /project-time settings | /project-time summary | /project-time billable | /project-time billable preview | /project-time history",
         "Tip: type /project-time followed by a space to choose a mode.",
       ].join("\n"),
       type: "info",
     })
+  })
+})
+
+test("shows derived local cost settings", async () => {
+  const runtime = createExtensionRuntime()
+  const context = createContext(runtime, { parentSession: undefined })
+
+  await runtime.commands.get("project-time")?.handler("settings", context as never)
+
+  assert.deepEqual(runtime.notifications.at(-1), {
+    message: [
+      "Project Time settings",
+      "Annual gross salary: CAD\u00a078,000.00",
+      "Working time: 40h/week × 52 weeks/year",
+      "Effective paid hourly cost: CAD\u00a037.50/h",
+      "Billable policies: not configured",
+    ].join("\n"),
+    type: "info",
+  })
+})
+
+test("shows configured billable attention and AI rates separately", async () => {
+  const runtime = createExtensionRuntime({
+    loadConfig: async () => parseDeveloperCostConfig({
+      billablePolicies: JSON.stringify({
+        defaultClient: "acme",
+        clients: {
+          acme: { label: "Acme", attentionRatePerHour: "120", aiRatePerHour: "30" },
+        },
+      }),
+      locale: "fr-CA",
+    }),
+  })
+  const context = createContext(runtime, { parentSession: undefined })
+
+  await runtime.commands.get("project-time")?.handler("settings", context as never)
+
+  assert.deepEqual(runtime.notifications.at(-1), {
+    message: [
+      "Project Time settings",
+      "Annual gross salary: 78 000,00 CAD",
+      "Working time: 40h/week × 52 weeks/year",
+      "Effective paid hourly cost: 37,50 CAD/h",
+      "Billable policies: configured",
+      "- Acme: attention 120,00 CAD/h; AI 30,00 CAD/h",
+    ].join("\n"),
+    type: "info",
   })
 })
 
@@ -205,7 +257,7 @@ test("uses the current repository as the default billable project target", async
           "Project: Project",
           "Developer meter: 0,00\u00a0CAD (dev)",
           "Billable policies: configured",
-          "Commands: /project-time summary | /project-time billable | /project-time billable preview | /project-time history",
+          "Commands: /project-time settings | /project-time summary | /project-time billable | /project-time billable preview | /project-time history",
           "Tip: type /project-time followed by a space to choose a mode.",
         ].join("\n"),
         type: "info",
@@ -525,9 +577,9 @@ test("feature scenario tracks visible developer cost across prompts and idle tim
   const runtime = createExtensionRuntime({
     loadConfig: async () =>
       parseDeveloperCostConfig({
-        monthlySalary: 100_000 / 12,
-        hoursPerWeek: 35,
-        weeksPerYear: 52,
+        annualGrossSalary: 100_000,
+        workingHoursPerWeek: 35,
+        workingWeeksPerYear: 52,
         activeWindowMinutes: 5,
         refreshIntervalSeconds: 60,
       }),
@@ -563,7 +615,7 @@ test("feature scenario tracks visible developer cost across prompts and idle tim
         "Project: unavailable",
         "Developer meter: CAD\u00a08.24 (dev)",
         "Billable policies: not configured",
-        "Commands: /project-time summary | /project-time billable | /project-time billable preview | /project-time history",
+        "Commands: /project-time settings | /project-time summary | /project-time billable | /project-time billable preview | /project-time history",
         "Tip: type /project-time followed by a space to choose a mode.",
       ].join("\n"),
       type: "info",
@@ -579,9 +631,9 @@ test("reports a detailed attention summary without changing the compact status",
   const runtime = createExtensionRuntime({
     loadConfig: async () =>
       parseDeveloperCostConfig({
-        monthlySalary: 100_000 / 12,
-        hoursPerWeek: 35,
-        weeksPerYear: 52,
+        annualGrossSalary: 100_000,
+        workingHoursPerWeek: 35,
+        workingWeeksPerYear: 52,
         activeWindowMinutes: 5,
         refreshIntervalSeconds: 60,
       }),
@@ -924,7 +976,7 @@ test("restores persisted state from full session history", async () => {
         "Project: unavailable",
         "Developer meter: CAD\u00a012.34 (dev)",
         "Billable policies: not configured",
-        "Commands: /project-time summary | /project-time billable | /project-time billable preview | /project-time history",
+        "Commands: /project-time settings | /project-time summary | /project-time billable | /project-time billable preview | /project-time history",
         "Tip: type /project-time followed by a space to choose a mode.",
       ].join("\n"),
       type: "info",
@@ -1284,6 +1336,40 @@ test("resumes stale persisted session state from its settled shared ledger entry
   }
 })
 
+test("loads former cost settings from a shared billing ledger", async () => {
+  const ledgerPath = temporaryLedgerPath()
+  const ledger = new SpreadBillingLedger(ledgerPath)
+  const nowMs = Date.UTC(2026, 0, 1, 12, 0, 0)
+  const config = await loadFullRateConfig()
+
+  await writeFile(ledgerPath, JSON.stringify({
+    settledThroughMs: nowMs,
+    sessions: {
+      legacy: {
+        state: { totalCost: "0", promptCount: 0, activeMilliseconds: 0 },
+        config: {
+          monthlySalary: 6_500,
+          hoursPerWeek: 40,
+          weeksPerYear: 52,
+          activeWindowMinutes: 5,
+          refreshIntervalSeconds: 15,
+          label: "dev",
+          locale: "en-CA",
+          billableTime: {
+            clientsByRepository: {},
+            projectNamesByRepository: {},
+            categoriesByRepository: {},
+          },
+        },
+      },
+    },
+  }))
+
+  const settled = await ledger.settle("current", emptyDeveloperCostState(), nowMs, config)
+
+  assert.equal(settled.totalCost.toString(), "0")
+})
+
 test("does not bill a child runtime against a shared ledger", async () => {
   const start = Date.UTC(2026, 0, 1, 12, 0, 0)
   let nowMs = start
@@ -1449,9 +1535,9 @@ async function withGitRepository(
 
 async function loadFullRateConfig() {
   return parseDeveloperCostConfig({
-    monthlySalary: 20_800,
-    hoursPerWeek: 40,
-    weeksPerYear: 52,
+    annualGrossSalary: 249_600,
+    workingHoursPerWeek: 40,
+    workingWeeksPerYear: 52,
     activeWindowMinutes: 5,
     refreshIntervalSeconds: 60,
   })
@@ -1459,7 +1545,7 @@ async function loadFullRateConfig() {
 
 async function loadBillableRateConfig() {
   return parseDeveloperCostConfig({
-    billableTime: {
+    billablePolicies: {
       clients: {
         acme: {
           label: "Acme",

@@ -13,8 +13,12 @@ requirements:
   - id: continuous_accrual
     title: Continuous active-time accrual
     requirement: While active, cost accrues continuously according to elapsed active milliseconds, not only after full five-minute windows.
-    formula: monthlySalary * 12 / (hoursPerWeek * weeksPerYear * 60 * 60 * 1000) * activeMilliseconds
+    formula: annualGrossSalary / (workingHoursPerWeek * workingWeeksPerYear * 60 * 60 * 1000) * activeMilliseconds
     rationale: The UI refresh should show the cost earned during the elapsed active interval.
+  - id: effective_paid_hourly_cost
+    title: Effective paid hourly cost settings
+    requirement: Configure annual gross salary, expected weekly working hours, and expected working weeks; expose their derived effective paid hourly cost and configured billable attention and AI rates only through local settings output.
+    rationale: Paid time off affects expected working hours, not calendar-year salary.
   - id: ui_refresh_interval
     title: Configurable UI refresh
     requirement: The status UI refreshes every refreshIntervalSeconds while the session is active.

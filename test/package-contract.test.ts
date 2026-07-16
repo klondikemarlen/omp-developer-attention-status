@@ -85,5 +85,6 @@ test("ships generated modules with separated declarations", async () => {
   const activeCostUrl = new URL("../dist/billing/calculation/cost-for-active-time.js", import.meta.url)
   const activeCost = await readFile(activeCostUrl, "utf8")
 
-  assert.match(activeCost, /time-constants\.js";\n\nexport function costForActiveMs\(/)
+  assert.match(activeCost, /time-constants\.js";\n\nexport function effectivePaidHourlyCost\(/)
+  assert.match(activeCost, /export function costForActiveMs\(/)
 })
