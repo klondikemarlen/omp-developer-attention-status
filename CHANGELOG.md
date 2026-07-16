@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2026-07-16
+
+### Added
+
+- Add `/project-time settings` with local effective paid hourly cost, billable-policy state, and configured rates.
+
+### Fixed
+
+- Load existing shared developer-meter entries after the settings rename.
+
+### Changed
+
+- Rename cost settings around annual gross salary and expected working time; legacy setting values continue to load.
+- Replace the default billable-policy `{}` with an explicit `disabled` state and a named structured policy setting.
+
+
 ## [3.2.0] - 2026-07-16
 
 ### Added

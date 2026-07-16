@@ -1,6 +1,6 @@
 {
   "name": "omp-project-time",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "Project time and billable work plugin for OMP.",
   "type": "module",
   "license": "MIT",
@@ -42,23 +42,23 @@
       "./dist/index.js"
     ],
     "settings": {
-      "monthlySalary": {
+      "annualGrossSalary": {
         "type": "number",
-        "default": 6500,
+        "default": 78000,
         "min": 1,
-        "description": "Monthly salary used for the Project Time meter."
+        "description": "Annual gross salary. Project Time divides this by working hours and weeks to show the effective paid hourly cost."
       },
-      "hoursPerWeek": {
+      "workingHoursPerWeek": {
         "type": "number",
         "default": 40,
         "min": 1,
-        "description": "Working hours per week used for the Project Time meter."
+        "description": "Expected working hours per week used to calculate the effective paid hourly cost."
       },
-      "weeksPerYear": {
+      "workingWeeksPerYear": {
         "type": "number",
         "default": 52,
         "min": 1,
-        "description": "Working weeks per year used for the Project Time meter."
+        "description": "Expected working weeks per year. Use fewer than 52 when paid time off reduces working hours."
       },
       "activeWindowMinutes": {
         "type": "number",
@@ -82,10 +82,10 @@
         "default": "en-CA",
         "description": "BCP 47 locale used to format Canadian-dollar amounts."
       },
-      "billableTime": {
+      "billablePolicies": {
         "type": "string",
-        "default": "{}",
-        "description": "JSON client policies for billable time; defaultClient targets the active Git repository, projects can override its displayed name, and categories assign local IDs and labels."
+        "default": "disabled",
+        "description": "Optional structured billable-policy JSON. disabled means billable tracking is not configured; see the README for the schema."
       }
     }
   },

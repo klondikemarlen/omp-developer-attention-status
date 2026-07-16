@@ -15,28 +15,76 @@ test("loads canonical plugin settings from disk", async () => {
 
   try {
     await writePluginSettings(pluginsLockfile, {
-      monthlySalary: 7_500,
+      annualGrossSalary: 90_000,
       label: "first",
       locale: "fr-CA",
     })
 
     const firstConfig = await loadDeveloperCostConfigFromFiles(pluginsLockfile, projectOverrides)
 
-    assert.equal(firstConfig.monthlySalary, 7_500)
+    assert.equal(firstConfig.annualGrossSalary, 90_000)
     assert.equal(firstConfig.label, "first")
     assert.equal(firstConfig.locale, "fr-CA")
 
     await writePluginSettings(pluginsLockfile, {
-      monthlySalary: 9_000,
+      annualGrossSalary: 108_000,
       refreshIntervalSeconds: 3,
       label: "second",
     })
 
     const secondConfig = await loadDeveloperCostConfigFromFiles(pluginsLockfile, projectOverrides)
 
-    assert.equal(secondConfig.monthlySalary, 9_000)
+    assert.equal(secondConfig.annualGrossSalary, 108_000)
     assert.equal(secondConfig.refreshIntervalSeconds, 3)
     assert.equal(secondConfig.label, "second")
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test("loads structured billable policies from the current setting", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "developer-cost-config-"))
+  const pluginsLockfile = path.join(directory, "omp-plugins.lock.json")
+  const projectOverrides = path.join(directory, "missing-overrides.json")
+
+  try {
+    await writePluginSettings(pluginsLockfile, {
+      billablePolicies: JSON.stringify({
+        defaultClient: "acme",
+        clients: {
+          acme: { label: "Acme", attentionRatePerHour: "100", aiRatePerHour: "25" },
+        },
+      }),
+    })
+
+    const config = await loadDeveloperCostConfigFromFiles(pluginsLockfile, projectOverrides)
+
+    assert.equal(config.billableTime.defaultClient?.id, "acme")
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test("loads former scalar and billable policy settings", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "developer-cost-config-"))
+  const pluginsLockfile = path.join(directory, "omp-plugins.lock.json")
+  const projectOverrides = path.join(directory, "missing-overrides.json")
+
+  try {
+    await writePluginSettings(pluginsLockfile, {
+      monthlySalary: 6_500,
+      billableTime: JSON.stringify({
+        defaultClient: "acme",
+        clients: {
+          acme: { label: "Acme", attentionRatePerHour: "100", aiRatePerHour: "25" },
+        },
+      }),
+    })
+
+    const config = await loadDeveloperCostConfigFromFiles(pluginsLockfile, projectOverrides)
+
+    assert.equal(config.annualGrossSalary, 78_000)
+    assert.equal(config.billableTime.defaultClient?.id, "acme")
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
@@ -49,7 +97,7 @@ test("project overrides win over global plugin settings", async () => {
 
   try {
     await writePluginSettings(pluginsLockfile, {
-      monthlySalary: 6_500,
+      annualGrossSalary: 78_000,
       label: "global",
     })
     await writePluginSettings(projectOverrides, {
@@ -59,7 +107,7 @@ test("project overrides win over global plugin settings", async () => {
 
     const config = await loadDeveloperCostConfigFromFiles(pluginsLockfile, projectOverrides)
 
-    assert.equal(config.monthlySalary, 9_000)
+    assert.equal(config.annualGrossSalary, 108_000)
     assert.equal(config.label, "project")
   } finally {
     await rm(directory, { recursive: true, force: true })
@@ -74,7 +122,7 @@ test("throws when project override config is malformed", async () => {
 
   try {
     await writePluginSettings(pluginsLockfile, {
-      monthlySalary: 6_500,
+      annualGrossSalary: 78_000,
     })
     await writeFile(projectOverrides, "{")
 

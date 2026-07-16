@@ -78,7 +78,8 @@ function clientFor(clientId, clients) {
 }
 
 function parseSettings(value) {
-  if (value === undefined || value === "{}") return undefined;
+  if (value === undefined || value === "disabled" || value === "{}")
+    return undefined;
   const parsedValue = typeof value === "string" ? JSON.parse(value) : value;
   return settingsSchema.parse(parsedValue);
 }

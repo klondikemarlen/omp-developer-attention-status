@@ -79,7 +79,7 @@ function clientFor(clientId: string, clients: ReadonlyMap<string, BillableClient
 }
 
 function parseSettings(value: unknown): z.infer<typeof settingsSchema> | undefined {
-  if (value === undefined || value === "{}") return undefined
+  if (value === undefined || value === "disabled" || value === "{}") return undefined
   const parsedValue = typeof value === "string" ? JSON.parse(value) : value
   return settingsSchema.parse(parsedValue)
 }
