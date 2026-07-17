@@ -21,7 +21,7 @@ function entry(
   }
 }
 
-test("raw reports retain full per-project attribution", () => {
+test("raw reports retain full per-repository totals", () => {
   const entries = [
     entry({
       sourceKind: "human_active",

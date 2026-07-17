@@ -1,4 +1,4 @@
-import type { TimeLogEntry, TimeLogAttribution, SourceKind } from "@/time-log/domain/model.js"
+import type { TimeLogEntry, SourceKind } from "@/time-log/domain/model.js"
 import { isFiniteNumber } from "@/utils/is-finite-number.js"
 
 export function parseTimeLogEntry(value: unknown): TimeLogEntry | undefined {
@@ -13,7 +13,6 @@ export function parseTimeLogEntry(value: unknown): TimeLogEntry | undefined {
   const startAtMs = candidate.startAtMs
   const endAtMs = candidate.endAtMs
   const createdAtMs = candidate.createdAtMs
-  const attribution = parseAttribution(candidate.attribution)
 
   if (
     typeof id !== "string"
@@ -29,6 +28,7 @@ export function parseTimeLogEntry(value: unknown): TimeLogEntry | undefined {
     || !isFiniteNumber(endAtMs)
     || startAtMs >= endAtMs
     || !isFiniteNumber(createdAtMs)
+    || "attribution" in candidate
   ) {
     return undefined
   }
@@ -42,7 +42,6 @@ export function parseTimeLogEntry(value: unknown): TimeLogEntry | undefined {
     startAtMs,
     endAtMs,
     createdAtMs,
-    ...(attribution === undefined ? {} : { attribution }),
   }
 }
 
@@ -52,41 +51,5 @@ function parseSourceKind(value: unknown): SourceKind | undefined {
   return undefined
 }
 
-function parseAttribution(
-  value: unknown,
-): TimeLogAttribution | undefined {
-  if (typeof value !== "object" || value === null) return undefined
-
-  const {
-    projectId,
-    projectName,
-    categoryId,
-    categoryLabel,
-    task,
-  } = value as Record<string, unknown>
-
-  if (
-    typeof projectId !== "string"
-    || projectId.length === 0
-    || typeof projectName !== "string"
-    || projectName.length === 0
-    || typeof categoryId !== "string"
-    || categoryId.length === 0
-    || typeof categoryLabel !== "string"
-    || categoryLabel.length === 0
-  ) {
-    return undefined
-  }
-
-  return {
-    projectId,
-    projectName,
-    categoryId,
-    categoryLabel,
-    ...(task !== undefined && typeof task === "string" && task.length > 0
-      ? { task }
-      : {}),
-  }
-}
 
 export default parseTimeLogEntry

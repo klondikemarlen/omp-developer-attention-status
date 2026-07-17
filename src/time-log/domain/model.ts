@@ -1,12 +1,5 @@
 export type SourceKind = "human_active" | "agent_turn_elapsed"
 
-export type TimeLogAttribution = {
-  projectId: string
-  projectName: string
-  categoryId: string
-  categoryLabel: string
-  task?: string
-}
 
 export type Repository = {
   project: string
@@ -21,7 +14,6 @@ export type AutomaticTimeLogInput = {
   sourceKey: string
   startAtMs: number
   endAtMs: number
-  attribution?: TimeLogAttribution
 }
 
 export type TimeLogEntry = {
@@ -33,5 +25,4 @@ export type TimeLogEntry = {
   startAtMs: number
   endAtMs: number
   createdAtMs: number
-  attribution?: TimeLogAttribution
 }

@@ -8,7 +8,7 @@ import { loadProjectTimeConfigFromFiles } from "../src/config/loader/load-projec
 
 const PLUGIN_NAME = "omp-project-time"
 
-test("publishes the v5 OMP settings UI", async () => {
+test("publishes the scalar v6 OMP settings UI", async () => {
   const manifest = JSON.parse(
     await readFile(new URL("../package.json", import.meta.url), "utf8"),
   ) as { omp: { settings: Record<string, unknown> } }
@@ -32,12 +32,6 @@ test("publishes the v5 OMP settings UI", async () => {
       default: "dev",
       description:
         "Shows this lowercase suffix in the status line, for example dev.",
-    },
-    "Repository Attribution": {
-      type: "string",
-      default: "{}",
-      description:
-        "Maps normalized repositories to project, category, and optional task JSON. Enter {} to clear attribution.",
     },
   })
 })
@@ -97,41 +91,7 @@ test("requires migrating retired setting names", async () => {
   }
 })
 
-test("loads repository attribution mappings from the current setting", async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), "project-time-config-"))
-  const pluginsLockfile = path.join(directory, "omp-plugins.lock.json")
-  const projectOverrides = path.join(directory, "missing-overrides.json")
-
-  try {
-    await writePluginSettings(pluginsLockfile, {
-      "Repository Attribution": JSON.stringify({
-        repositories: {
-          "github.com/acme/project": {
-            project: { id: "acme", label: "Acme" },
-            category: { id: "development", label: "Development" },
-          },
-        },
-      }),
-    })
-
-    const config = await loadProjectTimeConfigFromFiles(
-      pluginsLockfile,
-      projectOverrides,
-    )
-
-    assert.deepEqual(
-      config.repositoryAttribution.get("github.com/acme/project"),
-      {
-        project: { id: "acme", label: "Acme" },
-        category: { id: "development", label: "Development" },
-      },
-    )
-  } finally {
-    await rm(directory, { recursive: true, force: true })
-  }
-})
-
-test("treats empty repository attribution as no mapping", async () => {
+test("rejects removed repository attribution settings", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "project-time-config-"))
   const pluginsLockfile = path.join(directory, "omp-plugins.lock.json")
   const projectOverrides = path.join(directory, "missing-overrides.json")
@@ -141,12 +101,29 @@ test("treats empty repository attribution as no mapping", async () => {
       "Repository Attribution": "{}",
     })
 
-    const config = await loadProjectTimeConfigFromFiles(
-      pluginsLockfile,
-      projectOverrides,
+    await assert.rejects(
+      loadProjectTimeConfigFromFiles(pluginsLockfile, projectOverrides),
+      /v6 removed `Repository Attribution`/,
     )
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
 
-    assert.equal(config.repositoryAttribution.size, 0)
+test("rejects the retired repository billing setting", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "project-time-config-"))
+  const pluginsLockfile = path.join(directory, "omp-plugins.lock.json")
+  const projectOverrides = path.join(directory, "missing-overrides.json")
+
+  try {
+    await writePluginSettings(pluginsLockfile, {
+      repositoryBilling: "{}",
+    })
+
+    await assert.rejects(
+      loadProjectTimeConfigFromFiles(pluginsLockfile, projectOverrides),
+      /v6 removed `repositoryBilling`/,
+    )
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
@@ -233,28 +210,6 @@ test("rejects a decoded config document with invalid settings", async () => {
   }
 })
 
-test("rejects invalid repository attribution", async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), "project-time-config-"))
-  const pluginsLockfile = path.join(directory, "omp-plugins.lock.json")
-  const projectOverrides = path.join(directory, "missing-overrides.json")
-
-  try {
-    await writePluginSettings(pluginsLockfile, {
-      "Repository Attribution": JSON.stringify({
-        repositories: {
-          "github.com/acme/project": { project: "invalid" },
-        },
-      }),
-    })
-
-    await assert.rejects(
-      loadProjectTimeConfigFromFiles(pluginsLockfile, projectOverrides),
-      /Invalid repository attribution/,
-    )
-  } finally {
-    await rm(directory, { recursive: true, force: true })
-  }
-})
 
 async function writePluginSettings(
   filePath: string,

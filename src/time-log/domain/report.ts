@@ -1,4 +1,4 @@
-import type { TimeLogEntry, TimeLogAttribution, SourceKind } from "@/time-log/domain/model.js"
+import type { TimeLogEntry, SourceKind } from "@/time-log/domain/model.js"
 
 export type AllocationMode = "raw" | "split" | "weighted"
 
@@ -6,11 +6,7 @@ export type ReportEntry = {
   mode: AllocationMode
   sourceKind: SourceKind
   repositoryId: string
-  projectId: string
-  projectName: string
-  categoryId: string
-  categoryLabel: string
-  task?: string
+  project: string
   durationMs: number
 }
 
@@ -34,14 +30,14 @@ export function buildReport(
       sourceKind,
       mode,
       ompActiveUnionMs: unionMilliseconds(filtered),
-      entries: fullAttributionEntries(filtered, sourceKind, mode),
+      entries: repositoryEntries(filtered, sourceKind, mode),
     }
   }
 
   return splitWeightedReport(filtered, sourceKind, mode, weights)
 }
 
-function fullAttributionEntries(
+function repositoryEntries(
   entries: readonly TimeLogEntry[],
   sourceKind: SourceKind,
   mode: AllocationMode,
@@ -49,8 +45,7 @@ function fullAttributionEntries(
   const totals = new Map<string, ReportEntry>()
 
   for (const entry of entries) {
-    const attribution = attributionFor(entry)
-    const key = entryKey(entry, attribution)
+    const key = entry.repositoryId
     const durationMs = entry.endAtMs - entry.startAtMs
     const existing = totals.get(key)
 
@@ -59,7 +54,7 @@ function fullAttributionEntries(
         mode,
         sourceKind,
         repositoryId: entry.repositoryId,
-        ...attribution,
+        project: entry.project,
         durationMs,
       })
     } else {
@@ -104,8 +99,7 @@ function splitWeightedReport(
     )
 
     for (const entry of active) {
-      const attribution = attributionFor(entry)
-      const key = entryKey(entry, attribution)
+      const key = entry.repositoryId
       const weight = weights?.[entry.repositoryId] ?? 1
       const weightedShare =
         weightSum > 0 ? duration * weight / weightSum : equalShare
@@ -114,14 +108,14 @@ function splitWeightedReport(
         mode: "split",
         sourceKind,
         repositoryId: entry.repositoryId,
-        ...attribution,
+        project: entry.project,
         durationMs: equalShare,
       })
       addDuration(weightedTotals, key, {
         mode: "weighted",
         sourceKind,
         repositoryId: entry.repositoryId,
-        ...attribution,
+        project: entry.project,
         durationMs: weightedShare,
       })
     }
@@ -212,26 +206,7 @@ function unionMilliseconds(entries: readonly TimeLogEntry[]): number {
   return totalMilliseconds
 }
 
-function attributionFor(entry: TimeLogEntry): TimeLogAttribution {
-  return (
-    entry.attribution ?? {
-      projectId: entry.repositoryId,
-      projectName: entry.project,
-      categoryId: "default",
-      categoryLabel: "Default",
-      task: "Unlabeled project work",
-    }
-  )
-}
 
-function entryKey(entry: TimeLogEntry, attribution: TimeLogAttribution): string {
-  return [
-    entry.repositoryId,
-    attribution.projectId,
-    attribution.categoryId,
-    attribution.task ?? "",
-  ].join("\0")
-}
 
 function addDuration(
   totals: Map<string, ReportEntry>,

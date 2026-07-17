@@ -318,11 +318,8 @@ export class ProjectTimeRuntime {
       return;
     }
     const nowMs = Date.now();
-    this.timeLogRecorder.recordAgentTurnEnd(
-      sessionId,
-      nowMs,
-      config,
-      (message) => ctx.ui.notify(`Project Time log error: ${message}`, "error"),
+    this.timeLogRecorder.recordAgentTurnEnd(sessionId, nowMs, (message) =>
+      ctx.ui.notify(`Project Time log error: ${message}`, "error"),
     );
     const settledState = await this.sessionStateCoordinator.settle({
       config,

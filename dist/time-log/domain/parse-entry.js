@@ -11,7 +11,6 @@ export function parseTimeLogEntry(value) {
   const startAtMs = candidate.startAtMs;
   const endAtMs = candidate.endAtMs;
   const createdAtMs = candidate.createdAtMs;
-  const attribution = parseAttribution(candidate.attribution);
   if (
     typeof id !== "string" ||
     id.length === 0 ||
@@ -25,7 +24,8 @@ export function parseTimeLogEntry(value) {
     !isFiniteNumber(startAtMs) ||
     !isFiniteNumber(endAtMs) ||
     startAtMs >= endAtMs ||
-    !isFiniteNumber(createdAtMs)
+    !isFiniteNumber(createdAtMs) ||
+    "attribution" in candidate
   ) {
     return undefined;
   }
@@ -38,39 +38,12 @@ export function parseTimeLogEntry(value) {
     startAtMs,
     endAtMs,
     createdAtMs,
-    ...(attribution === undefined ? {} : { attribution }),
   };
 }
 
 function parseSourceKind(value) {
   if (value === "human_active" || value === "agent_turn_elapsed") return value;
   return undefined;
-}
-
-function parseAttribution(value) {
-  if (typeof value !== "object" || value === null) return undefined;
-  const { projectId, projectName, categoryId, categoryLabel, task } = value;
-  if (
-    typeof projectId !== "string" ||
-    projectId.length === 0 ||
-    typeof projectName !== "string" ||
-    projectName.length === 0 ||
-    typeof categoryId !== "string" ||
-    categoryId.length === 0 ||
-    typeof categoryLabel !== "string" ||
-    categoryLabel.length === 0
-  ) {
-    return undefined;
-  }
-  return {
-    projectId,
-    projectName,
-    categoryId,
-    categoryLabel,
-    ...(task !== undefined && typeof task === "string" && task.length > 0
-      ? { task }
-      : {}),
-  };
 }
 
 export default parseTimeLogEntry;

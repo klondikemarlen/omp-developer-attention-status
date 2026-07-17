@@ -2,7 +2,6 @@ import { errorMessage } from "../utils/error-message.js";
 import { createAutomaticTimeLogEntry } from "../time-log/domain/create-automatic-entry.js";
 import { TimeLogLedger } from "../time-log/infrastructure/ledger.js";
 import { resolveGitRepository } from "../infrastructure/git-repository.js";
-import { normalizeRepositoryIdentity } from "../infrastructure/repository-identity.js";
 
 export class AutomaticTimeLogRecorder {
   lastErrorMessage;
@@ -17,15 +16,13 @@ export class AutomaticTimeLogRecorder {
     this.ledger = new TimeLogLedger(timeLogPath);
   }
 
-  recordPromptStart(sessionId, cwd, promptAtMs, config, notifyError) {
+  recordPromptStart(sessionId, cwd, promptAtMs, notifyError) {
     const repository = this.repositoryFor(cwd);
     const activity = this.sessionActivityFor(sessionId);
     if (activity.agentTurnStartAtMs !== undefined) {
       this.closeAgentTurn(
         activity,
         {
-          config,
-          cwd,
           endAtMs: promptAtMs,
           sessionId,
           startAtMs: activity.agentTurnStartAtMs,
@@ -48,15 +45,13 @@ export class AutomaticTimeLogRecorder {
     );
   }
 
-  recordAgentTurnEnd(sessionId, endAtMs, config, notifyError) {
+  recordAgentTurnEnd(sessionId, endAtMs, notifyError) {
     const activity = this.sessionActivities.get(sessionId);
     if (activity === undefined || activity.agentTurnStartAtMs === undefined)
       return;
     this.closeAgentTurn(
       activity,
       {
-        config,
-        cwd: "",
         endAtMs,
         sessionId,
         startAtMs: activity.agentTurnStartAtMs,
@@ -121,7 +116,7 @@ export class AutomaticTimeLogRecorder {
       settledState: settlement.settledState,
     });
     if (entry === undefined) return undefined;
-    return this.withAttribution(entry, repository, settlement.config);
+    return entry;
   }
 
   async agentEntry(turn) {
@@ -137,7 +132,7 @@ export class AutomaticTimeLogRecorder {
       startAtMs: turn.startAtMs,
       endAtMs: turn.endAtMs,
     };
-    return this.withAttribution(entry, repository, turn.config);
+    return entry;
   }
 
   async repositoryForSettlement(settlement, activity) {
@@ -173,25 +168,6 @@ export class AutomaticTimeLogRecorder {
       }
     });
     return repository;
-  }
-
-  withAttribution(entry, repository, config) {
-    const identity = repository.identity;
-    if (identity === undefined) return entry;
-    const attribution = config.repositoryAttribution.get(
-      normalizeRepositoryIdentity(identity),
-    );
-    if (attribution === undefined) return entry;
-    return {
-      ...entry,
-      attribution: {
-        projectId: attribution.project.id,
-        projectName: attribution.project.label,
-        categoryId: attribution.category.id,
-        categoryLabel: attribution.category.label,
-        ...(attribution.task === undefined ? {} : { task: attribution.task }),
-      },
-    };
   }
 }
 

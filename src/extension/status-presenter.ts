@@ -34,7 +34,6 @@ export function dashboardText(
     "Project Time",
     `Project: ${project ?? "unavailable"}`,
     `Current active: ${statusText(state, config)}`,
-    `Repository attribution: ${repositoryAttributionStatus(config)}`,
     "Commands: /project-time summary | /project-time history | /project-time report",
     "Tip: type /project-time followed by a space to choose a mode.",
   ].join("\n")
@@ -95,9 +94,6 @@ export function summaryText(
   ].join("\n")
 }
 
-function repositoryAttributionStatus(config: ProjectTimeConfig): string {
-  return config.repositoryAttribution.size > 0 ? "configured" : "not configured"
-}
 
 
 function recentEntries(entries: readonly TimeLogEntry[]): string[] {

@@ -5,7 +5,7 @@ import path from "node:path";
 const ompDataRoot = path.join(homedir(), ".omp");
 const legacyDataRoot = path.join(ompDataRoot, "developer-attention-status");
 const projectTimeDataRoot = path.join(ompDataRoot, "project-time");
-const trackingDataMarker = ".project-time-v4";
+const trackingDataMarker = ".project-time-v6";
 export function defaultProjectTimeDataRoot() {
   return projectTimeDataRoot;
 }
@@ -23,7 +23,7 @@ export async function prepareProjectTimeDataRoot(
       rm(oldSpreadLedgerDirectory, { recursive: true, force: true }),
     ]);
     await mkdir(rootPath, { recursive: true, mode: 0o700 });
-    await writeFile(markerPath, "project-time-v4\n", { mode: 0o600 });
+    await writeFile(markerPath, "project-time-v6\n", { mode: 0o600 });
   }
   await chmod(rootPath, 0o700);
 }

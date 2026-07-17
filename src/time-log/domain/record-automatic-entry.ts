@@ -39,7 +39,7 @@ function createTimeLogEntry(
   const project = input.project.trim()
   const repositoryId = input.repositoryId.trim()
   const sourceKey = input.sourceKey.trim()
-  const { startAtMs, endAtMs, sourceKind, sessionId, attribution } = input
+  const { startAtMs, endAtMs, sourceKind, sessionId } = input
 
   if (project.length === 0) throw new Error("Time log project is required.")
   if (repositoryId.length === 0) {
@@ -65,7 +65,6 @@ function createTimeLogEntry(
     startAtMs,
     endAtMs,
     createdAtMs,
-    ...(attribution === undefined ? {} : { attribution }),
   }
 }
 
