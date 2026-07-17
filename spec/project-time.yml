@@ -19,7 +19,7 @@ requirements:
     rationale: A later configuration change cannot reclassify immutable source evidence.
   - id: concurrent_projects
     title: Concurrent project evidence
-    requirement: Preserve full intervals for concurrent repositories. Reports must offer raw and independent attribution plus equal split and explicit weighted allocation modes.
+    requirement: Preserve full intervals for concurrent repositories. Reports must offer raw attribution plus equal split and explicit weighted allocation modes.
     rationale: Project totals may legitimately exceed the OMP-active union; allocation is a deliberate reporting policy, not a mutation of evidence.
   - id: omp_active_reference
     title: OMP-active union reference
