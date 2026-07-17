@@ -1,6 +1,6 @@
 {
   "name": "omp-project-time",
-  "version": "5.0.1",
+  "version": "6.0.0",
   "description": "Verifiable concurrent project-work logs for OMP.",
   "type": "module",
   "license": "MIT",
@@ -57,11 +57,6 @@
         "type": "string",
         "default": "dev",
         "description": "Shows this lowercase suffix in the status line, for example dev."
-      },
-      "Repository Attribution": {
-        "type": "string",
-        "default": "{}",
-        "description": "Maps normalized repositories to project, category, and optional task JSON. Enter {} to clear attribution."
       }
     }
   },

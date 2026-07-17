@@ -3,24 +3,20 @@ status: stable
 requirements:
   - id: top_level_human_activity
     title: Top-level human-active intervals
-    requirement: Record an immutable human_active interval for prompt-driven active collaboration in every top-level OMP session, including session identity, sanitized repository identity, interval bounds, and available task attribution.
+    requirement: Record an immutable human_active interval for prompt-driven active collaboration in every top-level OMP session, including session identity, sanitized repository identity, and interval bounds.
     rationale: Human-active evidence is the default Project Time source without claiming idle terminal or literal desk time.
   - id: agent_turn_evidence
     title: Separate agent-turn evidence
-    requirement: Record agent_turn_elapsed intervals from before_agent_start through turn_end for top-level sessions, with the same identity and attribution fields as human-active intervals.
+    requirement: Record agent_turn_elapsed intervals from before_agent_start through turn_end for top-level sessions, with the same identity and interval fields as human-active intervals.
     rationale: Agent execution is useful parallel evidence but must remain distinguishable from human collaboration.
   - id: source_separation
     title: Source separation
     requirement: Keep human_active and agent_turn_elapsed entries and reports separate; never automatically add agent-turn elapsed time to human-active, desk, or timesheet totals.
     rationale: Separate observations must not become an unreviewable billing decision.
-  - id: repository_attribution
-    title: Repository project attribution
-    requirement: Resolve the active Git repository transiently and snapshot configured project, category, and optional task attribution into every new interval.
-    rationale: A later configuration change cannot reclassify immutable source evidence.
   - id: concurrent_projects
     title: Concurrent project evidence
-    requirement: Preserve full intervals for concurrent repositories. Reports must offer raw attribution plus equal split and explicit weighted allocation modes.
-    rationale: Project totals may legitimately exceed the OMP-active union; allocation is a deliberate reporting policy, not a mutation of evidence.
+    requirement: Preserve full intervals for concurrent repositories. Reports must offer raw repository totals plus equal split and explicit weighted allocation modes.
+    rationale: Repository totals may legitimately exceed the OMP-active union; allocation is a deliberate reporting policy, not a mutation of evidence.
   - id: omp_active_reference
     title: OMP-active union reference
     requirement: Report the union of source-kind intervals as ompActiveUnionMs and never present it as literal desk presence.
@@ -31,16 +27,16 @@ requirements:
     rationale: Their activity belongs to the top-level session and otherwise risks double counting.
   - id: local_privacy
     title: Local privacy boundary
-    requirement: Persist only a sanitized project label, one-way repository hash, source kind, session identity, timing, and attribution. Do not persist working-directory paths, raw remote URLs, credentials, prompts, assignments, transcripts, tool output, artifacts, session files, file paths, or model metadata.
-    rationale: Attribution must not create sensitive activity logging.
+    requirement: Persist only a sanitized project label, one-way repository hash, source kind, session identity, and timing. Do not persist working-directory paths, raw remote URLs, credentials, prompts, assignments, transcripts, tool output, artifacts, session files, file paths, model metadata, or custom attribution.
+    rationale: Time tracking must not create sensitive activity logging.
   - id: local_data_reset
     title: Incompatible local data reset
     requirement: On the first startup after the major data-model change, delete legacy Project Time, developer-cost, and billable ledger data and write a local schema marker.
     rationale: This single-owner plugin deliberately discards incompatible local history instead of pretending it can safely convert it.
   - id: settings_ui
     title: Clear plugin settings
-    requirement: Expose Title Case OMP setting labels with units, action-oriented descriptions, and an explicit Repository Attribution JSON value.
-    rationale: OMP renders manifest setting keys directly, so the schema is the user-facing settings UI.
+    requirement: Expose only the scalar Active Window Minutes, Refresh Interval Seconds, and Status Label settings with Title Case labels and action-oriented descriptions.
+    rationale: OMP's plugin settings UI supports native boolean, string, number, and enum values, not structured configuration documents.
   - id: local_reports_only
     title: Local reports only
     requirement: Report commands emit local JSON and do not call external systems or define a provider payload.
@@ -52,5 +48,7 @@ non_requirements:
     description: Project Time does not calculate money, rates, client policy, invoices, or external time-entry payloads.
   - id: no_automatic_source_aggregation
     description: Project Time does not aggregate agent_turn_elapsed into human_active time.
+  - id: no_repository_attribution
+    description: Project Time does not configure repository-to-project, category, or task mappings.
   - id: no_inline_status_until_omp_support
     description: Project Time uses ctx.ui.setStatus on OMP's separate hook-status lines; it does not provide plugin-defined inline status segments.
