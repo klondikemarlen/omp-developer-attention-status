@@ -70,6 +70,27 @@ test("rejects legacy entries without a source kind", () => {
   )
 })
 
+test("rejects entries with removed attribution", () => {
+  assert.equal(
+    parseTimeLogEntry({
+      id: "v5-entry",
+      sourceKind: "human_active",
+      project: "Project A",
+      repositoryId: "repository-a",
+      startAtMs: start,
+      endAtMs: start + minute,
+      createdAtMs: start,
+      attribution: {
+        projectId: "project-a",
+        projectName: "Project A",
+        categoryId: "development",
+        categoryLabel: "Development",
+      },
+    }),
+    undefined,
+  )
+})
+
 test("limits automatic human intervals to the settled attention duration", () => {
   const entry = createAutomaticTimeLogEntry({
     nowMs: 6 * minute,

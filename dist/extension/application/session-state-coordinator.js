@@ -38,7 +38,6 @@ export class SessionStateCoordinator {
       update.sessionId,
       update.cwd,
       update.nowMs,
-      update.config,
       update.notifyTimeLogError,
     );
     this.persist(update.sessionId, state);
@@ -71,7 +70,6 @@ export class SessionStateCoordinator {
   recordTimeLogSettlement(update, stateBeforeSettlement, settledState) {
     this.timeLogRecorder.recordSettlement(
       {
-        config: update.config,
         cwd: update.cwd,
         nowMs: update.nowMs,
         sessionId: update.sessionId,

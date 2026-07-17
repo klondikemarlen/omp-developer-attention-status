@@ -5,17 +5,16 @@ export function buildReport(entries, sourceKind, mode, weights) {
       sourceKind,
       mode,
       ompActiveUnionMs: unionMilliseconds(filtered),
-      entries: fullAttributionEntries(filtered, sourceKind, mode),
+      entries: repositoryEntries(filtered, sourceKind, mode),
     };
   }
   return splitWeightedReport(filtered, sourceKind, mode, weights);
 }
 
-function fullAttributionEntries(entries, sourceKind, mode) {
+function repositoryEntries(entries, sourceKind, mode) {
   const totals = new Map();
   for (const entry of entries) {
-    const attribution = attributionFor(entry);
-    const key = entryKey(entry, attribution);
+    const key = entry.repositoryId;
     const durationMs = entry.endAtMs - entry.startAtMs;
     const existing = totals.get(key);
     if (existing === undefined) {
@@ -23,7 +22,7 @@ function fullAttributionEntries(entries, sourceKind, mode) {
         mode,
         sourceKind,
         repositoryId: entry.repositoryId,
-        ...attribution,
+        project: entry.project,
         durationMs,
       });
     } else {
@@ -58,8 +57,7 @@ function splitWeightedReport(entries, sourceKind, mode, weights) {
       0,
     );
     for (const entry of active) {
-      const attribution = attributionFor(entry);
-      const key = entryKey(entry, attribution);
+      const key = entry.repositoryId;
       const weight = weights?.[entry.repositoryId] ?? 1;
       const weightedShare =
         weightSum > 0 ? (duration * weight) / weightSum : equalShare;
@@ -67,14 +65,14 @@ function splitWeightedReport(entries, sourceKind, mode, weights) {
         mode: "split",
         sourceKind,
         repositoryId: entry.repositoryId,
-        ...attribution,
+        project: entry.project,
         durationMs: equalShare,
       });
       addDuration(weightedTotals, key, {
         mode: "weighted",
         sourceKind,
         repositoryId: entry.repositoryId,
-        ...attribution,
+        project: entry.project,
         durationMs: weightedShare,
       });
     }
@@ -142,27 +140,6 @@ function unionMilliseconds(entries) {
     totalMilliseconds += currentEndAtMs - currentStartAtMs;
   }
   return totalMilliseconds;
-}
-
-function attributionFor(entry) {
-  return (
-    entry.attribution ?? {
-      projectId: entry.repositoryId,
-      projectName: entry.project,
-      categoryId: "default",
-      categoryLabel: "Default",
-      task: "Unlabeled project work",
-    }
-  );
-}
-
-function entryKey(entry, attribution) {
-  return [
-    entry.repositoryId,
-    attribution.projectId,
-    attribution.categoryId,
-    attribution.task ?? "",
-  ].join("\0");
 }
 
 function addDuration(totals, key, template) {

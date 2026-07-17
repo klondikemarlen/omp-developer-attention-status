@@ -26,7 +26,7 @@ function createTimeLogEntry(input, createdAtMs) {
   const project = input.project.trim();
   const repositoryId = input.repositoryId.trim();
   const sourceKey = input.sourceKey.trim();
-  const { startAtMs, endAtMs, sourceKind, sessionId, attribution } = input;
+  const { startAtMs, endAtMs, sourceKind, sessionId } = input;
   if (project.length === 0) throw new Error("Time log project is required.");
   if (repositoryId.length === 0) {
     throw new Error("Time log repository identity is required.");
@@ -50,7 +50,6 @@ function createTimeLogEntry(input, createdAtMs) {
     startAtMs,
     endAtMs,
     createdAtMs,
-    ...(attribution === undefined ? {} : { attribution }),
   };
 }
 

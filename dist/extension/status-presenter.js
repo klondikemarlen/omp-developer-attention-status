@@ -19,7 +19,6 @@ export function dashboardText(state, config, project) {
     "Project Time",
     `Project: ${project ?? "unavailable"}`,
     `Current active: ${statusText(state, config)}`,
-    `Repository attribution: ${repositoryAttributionStatus(config)}`,
     "Commands: /project-time summary | /project-time history | /project-time report",
     "Tip: type /project-time followed by a space to choose a mode.",
   ].join("\n");
@@ -69,12 +68,6 @@ export function summaryText(state, config, sessionId, nowMs) {
     `Prompt count: ${state.promptCount}`,
     lastPrompt,
   ].join("\n");
-}
-
-function repositoryAttributionStatus(config) {
-  return config.repositoryAttribution.size > 0
-    ? "configured"
-    : "not configured";
 }
 
 function recentEntries(entries) {

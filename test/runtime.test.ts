@@ -11,7 +11,7 @@ import type {
   ExtensionContext,
 } from "../src/extension/types.js"
 
-test("reports raw attribution and rejects the removed independent mode", async () => {
+test("reports raw repository time and rejects the removed independent mode", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "project-time-runtime-"))
   const notices: Array<{ message: string; type?: string }> = []
   let handler: CommandHandler | undefined
