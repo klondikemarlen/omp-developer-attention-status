@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import test from "node:test"
@@ -8,6 +8,40 @@ import { loadProjectTimeConfigFromFiles } from "../src/config/loader/load-projec
 
 const PLUGIN_NAME = "omp-project-time"
 
+test("publishes the v5 OMP settings UI", async () => {
+  const manifest = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8"),
+  ) as { omp: { settings: Record<string, unknown> } }
+
+  assert.deepEqual(manifest.omp.settings, {
+    "Active Window Minutes": {
+      type: "number",
+      default: 5,
+      min: 1,
+      description:
+        "Keeps Project Time active for this many minutes after a user prompt.",
+    },
+    "Refresh Interval Seconds": {
+      type: "number",
+      default: 15,
+      min: 1,
+      description: "Refreshes the active status every this many seconds.",
+    },
+    "Status Label": {
+      type: "string",
+      default: "dev",
+      description:
+        "Shows this lowercase suffix in the status line, for example dev.",
+    },
+    "Repository Attribution": {
+      type: "string",
+      default: "",
+      description:
+        "Maps normalized repositories to project, category, and optional task JSON.",
+    },
+  })
+})
+
 test("loads canonical plugin settings from disk", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "project-time-config-"))
   const pluginsLockfile = path.join(directory, "omp-plugins.lock.json")
@@ -15,8 +49,8 @@ test("loads canonical plugin settings from disk", async () => {
 
   try {
     await writePluginSettings(pluginsLockfile, {
-      activeWindowMinutes: 10,
-      label: "first",
+      "Active Window Minutes": 10,
+      "Status Label": "first",
     })
 
     const firstConfig = await loadProjectTimeConfigFromFiles(
@@ -28,9 +62,9 @@ test("loads canonical plugin settings from disk", async () => {
     assert.equal(firstConfig.label, "first")
 
     await writePluginSettings(pluginsLockfile, {
-      activeWindowMinutes: 3,
-      refreshIntervalSeconds: 3,
-      label: "second",
+      "Active Window Minutes": 3,
+      "Refresh Interval Seconds": 3,
+      "Status Label": "second",
     })
 
     const secondConfig = await loadProjectTimeConfigFromFiles(
@@ -46,6 +80,23 @@ test("loads canonical plugin settings from disk", async () => {
   }
 })
 
+test("requires migrating retired setting names", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "project-time-config-"))
+  const pluginsLockfile = path.join(directory, "omp-plugins.lock.json")
+  const projectOverrides = path.join(directory, "missing-overrides.json")
+
+  try {
+    await writePluginSettings(pluginsLockfile, { activeWindowMinutes: 10 })
+
+    await assert.rejects(
+      loadProjectTimeConfigFromFiles(pluginsLockfile, projectOverrides),
+      /Replace `activeWindowMinutes` with `Active Window Minutes`/,
+    )
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
 test("loads repository attribution mappings from the current setting", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "project-time-config-"))
   const pluginsLockfile = path.join(directory, "omp-plugins.lock.json")
@@ -53,7 +104,7 @@ test("loads repository attribution mappings from the current setting", async () 
 
   try {
     await writePluginSettings(pluginsLockfile, {
-      repositoryBilling: JSON.stringify({
+      "Repository Attribution": JSON.stringify({
         repositories: {
           "github.com/acme/project": {
             project: { id: "acme", label: "Acme" },
@@ -87,12 +138,12 @@ test("project overrides win over global plugin settings", async () => {
 
   try {
     await writePluginSettings(pluginsLockfile, {
-      activeWindowMinutes: 10,
-      label: "global",
+      "Active Window Minutes": 10,
+      "Status Label": "global",
     })
     await writePluginSettings(projectOverrides, {
-      activeWindowMinutes: 7,
-      label: "project",
+      "Active Window Minutes": 7,
+      "Status Label": "project",
     })
 
     const config = await loadProjectTimeConfigFromFiles(
@@ -114,7 +165,7 @@ test("throws when project override config is malformed", async () => {
 
   try {
     await writePluginSettings(pluginsLockfile, {
-      activeWindowMinutes: 10,
+      "Active Window Minutes": 10,
     })
     await writeFile(projectOverrides, "{")
 
@@ -168,7 +219,7 @@ test("rejects invalid repository attribution", async () => {
 
   try {
     await writePluginSettings(pluginsLockfile, {
-      repositoryBilling: JSON.stringify({
+      "Repository Attribution": JSON.stringify({
         repositories: {
           "github.com/acme/project": { project: "invalid" },
         },

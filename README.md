@@ -14,7 +14,7 @@ Canonical requirements live in [`spec/project-time.yml`](spec/project-time.yml).
 ## Behavior
 
 - Only top-level sessions are tracked. Subagents and artifacts do not produce entries.
-- A real user prompt keeps the human-active timer alive for `activeWindowMinutes`; refreshes do not create activity.
+- A real user prompt keeps the human-active timer alive for `Active Window Minutes`; refreshes do not create activity.
 - Every entry is immutable and includes its source kind, top-level session, sanitized repository identity, interval bounds, and configured project/category/task attribution when available.
 - Concurrent repositories retain their full independent intervals. Totals can exceed the OMP-active union; that is recorded evidence, not an error.
 - Project Time does not claim literal desk time. The union is an OMP-active reference only.
@@ -24,12 +24,23 @@ The plugin writes only through `ctx.ui.setStatus(...)`. With `@oh-my-pi/pi-codin
 
 ## Defaults
 
-- `activeWindowMinutes`: `5`
-- `refreshIntervalSeconds`: `15`
-- `label`: `dev`
-- `repositoryBilling`: `disabled`
+- `Active Window Minutes`: `5`
+- `Refresh Interval Seconds`: `15`
+- `Status Label`: `dev`
+- `Repository Attribution`: empty
 
-`refreshIntervalSeconds` controls status display cadence, not interval length.
+`Refresh Interval Seconds` controls status display cadence, not interval length. Version 5 replaces the lower-camel-case names; Project Time rejects the retired names instead of silently dropping their values.
+
+### Migrate from version 4
+
+Re-enter custom values under the new labels in OMP’s plugin Settings screen. Before deleting `repositoryBilling`, copy its JSON into `Repository Attribution`. Then remove the retired settings:
+
+```bash
+omp plugin config delete omp-project-time activeWindowMinutes
+omp plugin config delete omp-project-time refreshIntervalSeconds
+omp plugin config delete omp-project-time label
+omp plugin config delete omp-project-time repositoryBilling
+```
 
 ## Install
 
@@ -52,7 +63,7 @@ OMP symlinks local installs and watches them for changes. Restart OMP or run `/r
 
 ## Configure repository attribution
 
-`repositoryBilling` is retained as the setting name for compatibility with OMP's existing scalar configuration store. Its value configures attribution, not billing.
+OMP renders plugin setting keys as labels, so Project Time uses Title Case names with units. `Repository Attribution` is the one advanced scalar setting: it configures attribution, not billing.
 
 Each normalized GitHub repository can map to a project, category, and optional task. Mapped values are copied into entries when recorded; changing configuration never rewrites history.
 
@@ -71,7 +82,7 @@ Each normalized GitHub repository can map to a project, category, and optional t
 OMP settings are scalar, so set the JSON as one string:
 
 ```bash
-omp plugin config set omp-project-time repositoryBilling '{"repositories":{"github.com/acme/project":{"project":{"id":"acme","label":"Acme"},"category":{"id":"development","label":"Development"},"task":"Project work"}}}'
+omp plugin config set omp-project-time "Repository Attribution" '{"repositories":{"github.com/acme/project":{"project":{"id":"acme","label":"Acme"},"category":{"id":"development","label":"Development"},"task":"Project work"}}}'
 ```
 
 Unmapped repositories still record local intervals with a sanitized project name and default attribution. Project Time never persists working-directory paths, raw remote URLs, credentials, prompts, transcripts, tool output, artifacts, session files, file paths, or model metadata.

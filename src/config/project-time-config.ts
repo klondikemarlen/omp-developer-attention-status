@@ -31,23 +31,43 @@ export type ProjectTimeConfig = {
 }
 
 export type ProjectTimeOptions = {
-  activeWindowMinutes?: unknown
-  refreshIntervalSeconds?: unknown
-  label?: unknown
-  repositoryBilling?: unknown
+  "Active Window Minutes"?: unknown
+  "Refresh Interval Seconds"?: unknown
+  "Status Label"?: unknown
+  "Repository Attribution"?: unknown
 }
+
+const LEGACY_SETTING_NAMES = {
+  activeWindowMinutes: "Active Window Minutes",
+  refreshIntervalSeconds: "Refresh Interval Seconds",
+  label: "Status Label",
+  repositoryBilling: "Repository Attribution",
+} as const
 
 export function parseProjectTimeConfig(
   options?: ProjectTimeOptions,
 ): ProjectTimeConfig {
+  const legacySetting = Object.entries(LEGACY_SETTING_NAMES).find(
+    ([settingName]) => settingName in (options ?? {}),
+  )
+  if (legacySetting !== undefined) {
+    throw new Error(
+      `Project Time settings changed in v5. Replace \`${legacySetting[0]}\` with \`${legacySetting[1]}\`.`,
+    )
+  }
+
   const activeWindowMinutes =
-    parsePositiveNumber(options?.activeWindowMinutes)
+    parsePositiveNumber(options?.["Active Window Minutes"])
     ?? DEFAULT_ACTIVE_WINDOW_MINUTES
   const refreshIntervalSeconds =
-    parsePositiveNumber(options?.refreshIntervalSeconds)
+    parsePositiveNumber(options?.["Refresh Interval Seconds"])
     ?? DEFAULT_REFRESH_INTERVAL_SECONDS
-  const label = parseNonEmptyString(options?.label)?.toLowerCase() ?? DEFAULT_LABEL
-  const repositoryAttribution = parseRepositoryAttribution(options?.repositoryBilling)
+  const label =
+    parseNonEmptyString(options?.["Status Label"])?.toLowerCase()
+    ?? DEFAULT_LABEL
+  const repositoryAttribution = parseRepositoryAttribution(
+    options?.["Repository Attribution"],
+  )
 
   return {
     activeWindowMinutes,
@@ -106,8 +126,7 @@ function parseRepositoryAttribution(
 }
 
 function parseRepositoryAttributionJson(value: unknown): unknown | undefined {
-  if (value === undefined || value === "disabled" || value === "{}") return undefined
-
+  if (value === undefined || value === "" || value === "{}") return undefined
   if (typeof value === "string") {
     try {
       return JSON.parse(value)

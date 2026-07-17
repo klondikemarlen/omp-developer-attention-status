@@ -37,6 +37,10 @@ requirements:
     title: Incompatible local data reset
     requirement: On the first startup after the major data-model change, delete legacy Project Time, developer-cost, and billable ledger data and write a local schema marker.
     rationale: This single-owner plugin deliberately discards incompatible local history instead of pretending it can safely convert it.
+  - id: settings_ui
+    title: Clear plugin settings
+    requirement: Expose Title Case OMP setting labels with units, action-oriented descriptions, and an explicit Repository Attribution JSON value.
+    rationale: OMP renders manifest setting keys directly, so the schema is the user-facing settings UI.
   - id: local_reports_only
     title: Local reports only
     requirement: Report commands emit local JSON and do not call external systems or define a provider payload.

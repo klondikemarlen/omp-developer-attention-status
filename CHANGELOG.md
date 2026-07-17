@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [5.0.0] - 2026-07-17
+
+### Changed
+
+- Present OMP settings with Title Case, unit-bearing labels and action-oriented descriptions.
+- Rename the settings contract to `Active Window Minutes`, `Refresh Interval Seconds`, `Status Label`, and `Repository Attribution`.
+
+### Removed
+
+- Remove the historical `repositoryBilling` setting and `disabled` sentinel; v5 rejects retired lower-camel-case setting names.
+
 ## [4.0.1] - 2026-07-17
 
 ### Removed

@@ -1,6 +1,6 @@
 {
   "name": "omp-project-time",
-  "version": "4.0.1",
+  "version": "5.0.0",
   "description": "Verifiable concurrent project-work logs for OMP.",
   "type": "module",
   "license": "MIT",
@@ -41,27 +41,27 @@
       "./dist/index.js"
     ],
     "settings": {
-      "activeWindowMinutes": {
+      "Active Window Minutes": {
         "type": "number",
         "default": 5,
         "min": 1,
-        "description": "How long one prompt keeps Project Time active."
+        "description": "Keeps Project Time active for this many minutes after a user prompt."
       },
-      "refreshIntervalSeconds": {
+      "Refresh Interval Seconds": {
         "type": "number",
         "default": 15,
         "min": 1,
-        "description": "How often the status text refreshes while the meter is active."
+        "description": "Refreshes the active status every this many seconds."
       },
-      "label": {
+      "Status Label": {
         "type": "string",
         "default": "dev",
-        "description": "Lowercase suffix shown in the status line, such as dev."
+        "description": "Shows this lowercase suffix in the status line, for example dev."
       },
-      "repositoryBilling": {
+      "Repository Attribution": {
         "type": "string",
-        "default": "disabled",
-        "description": "Optional repository attribution JSON. Each repository maps to a project, category, and optional task."
+        "default": "",
+        "description": "Maps normalized repositories to project, category, and optional task JSON."
       }
     }
   },
