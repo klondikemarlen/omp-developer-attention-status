@@ -15,8 +15,8 @@ Canonical requirements live in [`spec/project-time.yml`](spec/project-time.yml).
 
 - Only top-level sessions are tracked. Subagents and artifacts do not produce entries.
 - A real user prompt keeps the human-active timer alive for `Active Window Minutes`; refreshes do not create activity.
-- Every entry includes its source kind, top-level session, sanitized repository identity, interval bounds, and an optional explicit activity label.
-- Activity labels are user-selected, coarse context only: at most 48 letters or numbers, separated by single spaces or hyphens. They never derive from prompts, session names, or tool activity.
+- Every entry includes its source kind, top-level session, sanitized repository identity, interval bounds, and an optional coarse activity label.
+- Before each top-level turn, OMP's configured title model generates the label from the current prompt. The prompt is transient; Project Time retains only the label, limited to 48 letters or numbers separated by single spaces or hyphens.
 - Concurrent repositories retain their full independent intervals. Totals can exceed the OMP-active union; that is recorded evidence, not an error.
 - Project Time does not claim literal desk time. The union is an OMP-active reference only.
 - The status is a dim, keyed OMP hook-status line such as `5m 12s (dev)`. OMP owns its placement and layout.
@@ -69,8 +69,6 @@ OMP symlinks local installs and watches them for changes. Restart OMP or run `/r
 /project-time
 /project-time summary
 /project-time history
-/project-time activity Code Review
-/project-time activity clear
 /project-time report
 /project-time report human split
 /project-time report agent raw
@@ -79,9 +77,9 @@ OMP symlinks local installs and watches them for changes. Restart OMP or run `/r
 /project-time report json human raw
 ```
 
-`/project-time` shows the current project and active interval status. `summary` shows the top-level session name, active time, selected activity, prompt count, and most recent prompt time. `history` shows local human-active and agent-turn intervals for the current repository.
+`/project-time` shows the current project and active interval status. `summary` shows the top-level session name, active time, automatic activity, prompt count, and most recent prompt time. `history` shows local human-active and agent-turn intervals for the current repository.
 
-`activity` sets coarse context for subsequent human-active intervals; `activity clear` returns to `unlabelled`. It accepts only the limited label format above.
+Activity labels are generated for each top-level turn by OMP's configured title model. There is no manual activity command.
 
 `report` is a concise human-active, raw-allocation summary. Add `agent`, `split`, or `weighted` to select an evidence source or allocation policy. `report json` is the explicit machine-readable form: without further arguments it includes both sources and all allocation modes; add a source and mode for one JSON report.
 
