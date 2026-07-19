@@ -4,11 +4,11 @@ import test from "node:test"
 import type { generateSessionTitle } from "@oh-my-pi/pi-coding-agent/utils/title-generator"
 
 import { generateActivityLabel } from "../src/extension/activity-label-generator.js"
-import type { ExtensionApi, ExtensionContext } from "../src/extension/types.js"
+import type { ExtensionContext } from "../src/extension/types.js"
 
 test("adapts OMP title generation for activity labels", async () => {
   const modelRegistry = {} as NonNullable<ExtensionContext["modelRegistry"]>
-  const settings = {} as NonNullable<NonNullable<ExtensionApi["pi"]>["settings"]>
+  const settings = {} as Parameters<typeof generateSessionTitle>[2]
   const context: ExtensionContext = {
     cwd: "/project",
     ui: {
@@ -23,7 +23,6 @@ test("adapts OMP title generation for activity labels", async () => {
     },
     modelRegistry,
   }
-  const pi: Pick<ExtensionApi, "pi"> = { pi: { settings } }
   let titleArguments: Parameters<typeof generateSessionTitle> | undefined
   const titleGenerator: typeof generateSessionTitle = async (...arguments_) => {
     titleArguments = arguments_
@@ -33,7 +32,7 @@ test("adapts OMP title generation for activity labels", async () => {
   const label = await generateActivityLabel(
     "Review the pull request",
     context,
-    pi,
+    settings,
     titleGenerator,
   )
 

@@ -1,8 +1,3 @@
-const loadSessionTitleGenerator = async (...args) => {
-  const { generateSessionTitle } =
-    await import("@oh-my-pi/pi-coding-agent/utils/title-generator");
-  return generateSessionTitle(...args);
-};
 const activityLabelPrompt = [
   "Generate a concise coarse Project Time activity label for the current user request.",
   "Return only 1 to 48 Unicode letters or numbers, with words separated by a single space or hyphen.",
@@ -12,10 +7,9 @@ const activityLabelPrompt = [
 export async function generateActivityLabel(
   prompt,
   ctx,
-  pi,
-  titleGenerator = loadSessionTitleGenerator,
+  settings,
+  titleGenerator,
 ) {
-  const settings = pi.pi?.settings;
   if (ctx.modelRegistry === undefined || settings === undefined) {
     return undefined;
   }
