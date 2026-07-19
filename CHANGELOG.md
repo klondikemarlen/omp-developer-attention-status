@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.0.0] - 2026-07-18
+
+### Added
+
+- Generate a privacy-limited coarse activity label from each top-level user prompt with OMP's title model.
+
+### Removed
+
+- Remove manual `/project-time activity` labels and clearing.
+
+
 ## [6.1.0] - 2026-07-18
 
 ### Added
