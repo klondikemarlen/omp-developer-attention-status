@@ -360,10 +360,13 @@ export class ProjectTimeRuntime {
     const generatedActivity = await this.generateActivity(prompt, ctx).catch(
       () => undefined,
     )
-    const activity = parseGeneratedActivityLabel(generatedActivity)
     const currentActivity = this.sessionStateCoordinator
       .stateFor(update.sessionId, update.entries)
       .activity
+    const activity =
+      parseGeneratedActivityLabel(generatedActivity)
+      ?? currentActivity
+      ?? "General Work"
     if (currentActivity !== activity) {
       await this.sessionStateCoordinator.setActivity(update, activity)
     }

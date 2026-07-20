@@ -61,6 +61,7 @@ test("shows concise reports and generates automatic activity labels", async () =
     new ProjectTimeRuntime(extensionApi, {
       generateActivity: async (prompt) => {
         generatedPrompts.push(prompt)
+        if (prompt === "initial failure") return undefined
         if (prompt === "invalid output") return "Review #84"
         if (prompt === "generator failure") throw new Error("unavailable")
         return "Code Review"
@@ -84,8 +85,12 @@ test("shows concise reports and generates automatic activity labels", async () =
     await handler("report all", context)
     assert.match(notices.at(-1)?.message ?? "", /Use report json for an all-modes report/)
 
+    await handlers.beforeAgentStart({ prompt: "initial failure" }, context)
+    assert.deepEqual(generatedPrompts, ["initial failure"])
+    assert.equal(persistedActivities.at(-1), "General Work")
+
     await handlers.beforeAgentStart({ prompt: "Review the pull request" }, context)
-    assert.deepEqual(generatedPrompts, ["Review the pull request"])
+    assert.deepEqual(generatedPrompts, ["initial failure", "Review the pull request"])
     assert.equal(persistedActivities.at(-1), "Code Review")
     const persistedStateCount = persistedActivities.length
     await handlers.beforeAgentStart({ prompt: "same activity" }, context)
@@ -93,10 +98,10 @@ test("shows concise reports and generates automatic activity labels", async () =
     assert.equal(persistedActivities.at(-1), "Code Review")
 
     await handlers.beforeAgentStart({ prompt: "invalid output" }, context)
-    assert.equal(persistedActivities.at(-1), undefined)
+    assert.equal(persistedActivities.at(-1), "Code Review")
 
     await handlers.beforeAgentStart({ prompt: "generator failure" }, context)
-    assert.equal(persistedActivities.at(-1), undefined)
+    assert.equal(persistedActivities.at(-1), "Code Review")
 
     await handler("activity Code Review", context)
     assert.match(
