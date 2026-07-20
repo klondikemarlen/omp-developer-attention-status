@@ -25,19 +25,21 @@ export function recordAutomaticTimeLogEntry(
   }
 
   const existingEntry = entries[existingIndex]
-  if (entry.endAtMs <= existingEntry.endAtMs) {
+  const addsRepositoryIdentity =
+    existingEntry.repositoryIdentity === undefined
+    && entry.repositoryIdentity !== undefined
+  const extendsEntry = entry.endAtMs > existingEntry.endAtMs
+  if (!addsRepositoryIdentity && !extendsEntry) {
     return { changed: false, entry: existingEntry }
   }
 
-  const extendedEntry = {
+  const updatedEntry = {
     ...existingEntry,
-    ...(existingEntry.repositoryIdentity === undefined && entry.repositoryIdentity !== undefined
-      ? { repositoryIdentity: entry.repositoryIdentity }
-      : {}),
-    endAtMs: entry.endAtMs,
+    ...(addsRepositoryIdentity ? { repositoryIdentity: entry.repositoryIdentity } : {}),
+    ...(extendsEntry ? { endAtMs: entry.endAtMs } : {}),
   }
-  entries[existingIndex] = extendedEntry
-  return { changed: true, entry: extendedEntry }
+  entries[existingIndex] = updatedEntry
+  return { changed: true, entry: updatedEntry }
 }
 
 function createTimeLogEntry(
