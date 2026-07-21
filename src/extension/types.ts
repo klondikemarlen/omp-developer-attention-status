@@ -32,11 +32,17 @@ export type UiLike = {
   theme: ThemeLike
 }
 
+type OmpModel = Parameters<typeof generateSessionTitle>[4]
+
 export type ExtensionContext = {
   cwd: string
   ui: UiLike
   sessionManager: SessionManagerLike
-  model?: Parameters<typeof generateSessionTitle>[4]
+  model?: OmpModel
+  models?: {
+    current(): OmpModel | undefined
+    resolve(spec: string): OmpModel | undefined
+  }
   modelRegistry?: Parameters<typeof generateSessionTitle>[1]
 }
 

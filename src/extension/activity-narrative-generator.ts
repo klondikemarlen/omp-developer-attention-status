@@ -34,22 +34,27 @@ export async function generateActivityNarrative(
   ctx: ExtensionContext,
   complete?: ActivityNarrativeCompletion,
 ): Promise<ActivityNarrative | undefined> {
-  if (ctx.modelRegistry === undefined || ctx.model === undefined) return undefined
+  const model = ctx.model
+    ?? ctx.models?.current()
+    ?? ctx.models?.resolve("@tiny")
+    ?? ctx.models?.resolve("@commit")
+    ?? ctx.models?.resolve("@smol")
+  if (ctx.modelRegistry === undefined || model === undefined) return undefined
 
   const sessionId = ctx.sessionManager.getSessionId()
-  const apiKey = await ctx.modelRegistry.getApiKey(ctx.model, sessionId)
+  const apiKey = await ctx.modelRegistry.getApiKey(model, sessionId)
   if (!apiKey) return undefined
 
   // OMP's Bun runtime loads pi-ai source modules; Node test workers do not load its Markdown imports.
   const completion = complete ?? (await import("@oh-my-pi/pi-ai")).completeSimple as unknown as ActivityNarrativeCompletion
   const response = await completion(
-    ctx.model,
+    model,
     {
       systemPrompt: [activityNarrativePrompt],
       messages: [{ role: "user", content: prompt, timestamp: Date.now() }],
     },
     {
-      apiKey: ctx.modelRegistry.resolver(ctx.model, sessionId),
+      apiKey: ctx.modelRegistry.resolver(model, sessionId),
       maxTokens: 1_500,
       disableReasoning: true,
     },
