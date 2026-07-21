@@ -102,6 +102,8 @@ It is a single JSON ledger guarded by a cross-window lock and atomically replace
 
 Entries may include `narrative: { text, source }` alongside `activity`, `startAtMs`, and `endAtMs`. `source` is either `generated` or `user_provided`; omitted `narrative` means no description was captured. Project Time deliberately preserves each detailed interval narrative without aggregation or summarization so downstream worklog tools can deduplicate and summarize with the original interval and duration available for review.
 
+Entries may also include `workItem: { kind, number, repository?, source: "user_provided" }` when a prompt explicitly names a GitHub issue or pull request. The active work item persists through unrelated prompts, so downstream tools can group raw intervals without inferring context from activity labels or narratives.
+
 The first launch after this major data-model release clears incompatible legacy Project Time, developer-cost, and billable ledgers. Historical data is intentionally not converted.
 
 ## Development
