@@ -13,6 +13,7 @@ import { SessionStateCoordinator } from "../extension/application/session-state-
 import { AutomaticTimeLogRecorder } from "../time-log/recorder.js";
 import { parseGeneratedActivityLabel } from "../time-log/domain/activity.js";
 import { parseActivityNarrative } from "../time-log/domain/narrative.js";
+import { extractWorkItem } from "../time-log/domain/work-item.js";
 import { buildReport } from "../time-log/domain/report.js";
 import {
   clearStatus,
@@ -322,19 +323,25 @@ export class ProjectTimeRuntime {
       update.sessionId,
       update.entries,
     );
+    const workItem = extractWorkItem(prompt) ?? currentState.workItem;
     const activity =
       parseGeneratedActivityLabel(generatedActivity.activity) ??
       currentState.activity ??
       "General Work";
     const narrative = parseActivityNarrative(generatedActivity.narrative);
-    const narrativeChanged =
+    const stateChanged =
+      currentState.activity !== activity ||
       currentState.narrative?.text !== narrative?.text ||
-      currentState.narrative?.source !== narrative?.source;
-    if (currentState.activity !== activity || narrativeChanged) {
+      currentState.narrative?.source !== narrative?.source ||
+      currentState.workItem?.kind !== workItem?.kind ||
+      currentState.workItem?.number !== workItem?.number ||
+      currentState.workItem?.repository !== workItem?.repository;
+    if (stateChanged) {
       await this.sessionStateCoordinator.setActivity(
         update,
         activity,
         narrative,
+        workItem,
       );
     }
     const nextState = await this.sessionStateCoordinator.recordPrompt(update);

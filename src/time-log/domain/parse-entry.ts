@@ -1,6 +1,7 @@
 import type { TimeLogEntry, SourceKind } from "@/time-log/domain/model.js"
 import { parseActivityLabel } from "@/time-log/domain/activity.js"
 import { parseActivityNarrative } from "@/time-log/domain/narrative.js"
+import { parseWorkItem } from "@/time-log/domain/work-item.js"
 import { isFiniteNumber } from "@/utils/is-finite-number.js"
 import { parseRepositoryIdentity } from "@/utils/parse-repository-identity.js"
 
@@ -19,6 +20,7 @@ export function parseTimeLogEntry(value: unknown): TimeLogEntry | undefined {
   const createdAtMs = candidate.createdAtMs
   const activity = parseActivityLabel(candidate.activity)
   const narrative = parseActivityNarrative(candidate.narrative)
+  const workItem = parseWorkItem(candidate.workItem)
 
   if (
     typeof id !== "string"
@@ -37,6 +39,7 @@ export function parseTimeLogEntry(value: unknown): TimeLogEntry | undefined {
     || !isFiniteNumber(createdAtMs)
     || (candidate.activity !== undefined && activity === undefined)
     || (candidate.narrative !== undefined && narrative === undefined)
+    || (candidate.workItem !== undefined && workItem === undefined)
     || "attribution" in candidate
   ) {
     return undefined
@@ -51,6 +54,7 @@ export function parseTimeLogEntry(value: unknown): TimeLogEntry | undefined {
     ...(sessionId === undefined ? {} : { sessionId }),
     ...(activity === undefined ? {} : { activity }),
     ...(narrative === undefined ? {} : { narrative }),
+    ...(workItem === undefined ? {} : { workItem }),
     startAtMs,
     endAtMs,
     createdAtMs,

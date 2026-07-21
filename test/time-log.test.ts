@@ -121,7 +121,7 @@ test("rejects malformed remote identities in persisted entries", () => {
   }
 })
 
-test("reads legacy entries and typed activity narratives", () => {
+test("reads legacy entries, typed activity narratives, and work items", () => {
   const entry = {
     id: "entry",
     sourceKind: "human_active" as const,
@@ -165,6 +165,13 @@ test("reads legacy entries and typed activity narratives", () => {
       },
     },
   )
+  const workItem = {
+    kind: "issue" as const,
+    number: 99,
+    repository: "github.com/acme/project-time",
+    source: "user_provided" as const,
+  }
+  assert.deepEqual(parseTimeLogEntry({ ...entry, workItem }), { ...entry, workItem })
   assert.equal(
     parseTimeLogEntry({
       ...entry,
@@ -523,6 +530,12 @@ test("persists prompt narratives through the recorder", async () => {
     text: "Review PR #84: capture detailed activity narratives and verify downstream interval-duration access.",
     source: "generated" as const,
   }
+  const workItem = {
+    kind: "pull_request" as const,
+    number: 84,
+    repository: "github.com/acme/project-time",
+    source: "user_provided" as const,
+  }
 
   try {
     await execFileAsync("git", ["init", "--quiet", directory])
@@ -543,11 +556,26 @@ test("persists prompt narratives through the recorder", async () => {
       "Code Review",
       narrative,
       () => {},
+      workItem,
+    )
+    const nextWorkItem = {
+      kind: "issue" as const,
+      number: 99,
+      repository: "github.com/acme/project-time",
+      source: "user_provided" as const,
+    }
+    recorder.recordActivityChange(
+      "session",
+      start + minute,
+      "Code Review",
+      narrative,
+      () => {},
+      nextWorkItem,
     )
     recorder.recordSettlement(
       {
         cwd: directory,
-        nowMs: start + minute,
+        nowMs: start + 2 * minute,
         sessionId: "session",
         stateBeforeSettlement: {
           promptCount: 1,
@@ -557,25 +585,41 @@ test("persists prompt narratives through the recorder", async () => {
           activity: "Code Review",
           narrative,
           activityStartedAtMs: start,
+          workItem: nextWorkItem,
         },
         settledState: {
           promptCount: 1,
           activeMilliseconds: minute,
           activeStartAtMs: start,
           activeUntilMs: start + 5 * minute,
-          lastSettledAtMs: start + minute,
+          lastSettledAtMs: start + 2 * minute,
           activity: "Code Review",
           narrative,
-          activityStartedAtMs: start,
+          activityStartedAtMs: start + minute,
+          workItem: nextWorkItem,
         },
       },
       () => {},
     )
+    recorder.recordAgentTurnEnd("session", start + 2 * minute, () => {})
     await recorder.flush("session", () => {})
 
-    const entry = (await recorder.entries())[0]
-    assert.deepEqual(entry?.narrative, narrative)
-    assert.equal(entry?.endAtMs - (entry?.startAtMs ?? 0), minute)
+    const entries = await recorder.entries()
+    assert.deepEqual(entries.map((entry) => entry.sourceKind), [
+      "agent_turn_elapsed",
+      "human_active",
+      "agent_turn_elapsed",
+    ])
+    assert.deepEqual(entries.map((entry) => entry.workItem), [
+      workItem,
+      nextWorkItem,
+      nextWorkItem,
+    ])
+    assert.deepEqual(entries.map((entry) => entry.narrative), [
+      narrative,
+      narrative,
+      narrative,
+    ])
   } finally {
     await rm(directory, { recursive: true, force: true })
   }

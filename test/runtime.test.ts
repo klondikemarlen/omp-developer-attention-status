@@ -17,6 +17,7 @@ test("shows concise reports and generates automatic activity labels", async () =
   const notices: Array<{ message: string; type?: string }> = []
   const persistedActivities: unknown[] = []
   const persistedNarratives: unknown[] = []
+  const persistedWorkItems: unknown[] = []
   const generatedPrompts: string[] = []
   const handlers: { beforeAgentStart?: BeforeAgentStartHandler } = {}
   let completionValues: string[] = []
@@ -37,9 +38,11 @@ test("shows concise reports and generates automatic activity labels", async () =
       if (data !== null && typeof data === "object") {
         persistedActivities.push("activity" in data ? data.activity : undefined)
         persistedNarratives.push("narrative" in data ? data.narrative : undefined)
+        persistedWorkItems.push("workItem" in data ? data.workItem : undefined)
       } else {
         persistedActivities.push(undefined)
         persistedNarratives.push(undefined)
+        persistedWorkItems.push(undefined)
       }
     },
   }
@@ -109,6 +112,27 @@ test("shows concise reports and generates automatic activity labels", async () =
     assert.deepEqual(persistedNarratives.at(-1), {
       text: "Review PR #84, Capture activity narratives for downstream worklogs: verify typed persistence, legacy-log compatibility, and interval-duration access.",
       source: "generated",
+    })
+
+    await handlers.beforeAgentStart({ prompt: "Continue the review without a reference." }, context)
+    assert.deepEqual(persistedWorkItems.at(-1), {
+      kind: "pull_request",
+      number: 84,
+      source: "user_provided",
+    })
+
+    await handlers.beforeAgentStart({ prompt: "Review PR #85." }, context)
+    assert.deepEqual(persistedWorkItems.at(-1), {
+      kind: "pull_request",
+      number: 85,
+      source: "user_provided",
+    })
+
+    await handlers.beforeAgentStart({ prompt: "Review PR #84 and PR #85." }, context)
+    assert.deepEqual(persistedWorkItems.at(-1), {
+      kind: "pull_request",
+      number: 85,
+      source: "user_provided",
     })
     const persistedStateCount = persistedActivities.length
     await handlers.beforeAgentStart({ prompt: "same activity" }, context)

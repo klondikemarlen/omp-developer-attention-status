@@ -84,7 +84,11 @@ function recentEntries(entries) {
     .sort((left, right) => right.endAtMs - left.endAtMs)
     .slice(0, 3)
     .map((entry) => {
-      const summary = `- ${timestampText(entry.endAtMs)}: ${durationText(entry.endAtMs - entry.startAtMs)} — ${activityText(entry.activity)}`;
+      const workItem =
+        entry.workItem === undefined
+          ? ""
+          : ` — ${entry.workItem.repository === undefined ? "" : `${entry.workItem.repository} `}${entry.workItem.kind === "issue" ? "Issue" : "PR"} #${entry.workItem.number}`;
+      const summary = `- ${timestampText(entry.endAtMs)}: ${durationText(entry.endAtMs - entry.startAtMs)} — ${activityText(entry.activity)}${workItem}`;
       return entry.narrative === undefined
         ? summary
         : `${summary}\n${entry.narrative.text

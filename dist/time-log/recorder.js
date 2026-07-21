@@ -23,6 +23,7 @@ export class AutomaticTimeLogRecorder {
     activityLabel,
     narrative,
     notifyError,
+    workItem,
   ) {
     const repository = this.repositoryFor(cwd);
     const activity = this.sessionActivityFor(sessionId);
@@ -37,7 +38,13 @@ export class AutomaticTimeLogRecorder {
         notifyError,
       );
     }
-    activity.setPromptStart(repository, promptAtMs, activityLabel, narrative);
+    activity.setPromptStart(
+      repository,
+      promptAtMs,
+      activityLabel,
+      narrative,
+      workItem,
+    );
   }
 
   recordSettlement(settlement, notifyError) {
@@ -67,7 +74,14 @@ export class AutomaticTimeLogRecorder {
     );
   }
 
-  recordActivityChange(sessionId, atMs, activityLabel, narrative, notifyError) {
+  recordActivityChange(
+    sessionId,
+    atMs,
+    activityLabel,
+    narrative,
+    notifyError,
+    workItem,
+  ) {
     const activity = this.sessionActivities.get(sessionId);
     if (activity === undefined) return;
     const agentTurnStartAtMs = activity.agentTurnStartAtMs;
@@ -83,6 +97,7 @@ export class AutomaticTimeLogRecorder {
     }
     activity.activity = activityLabel;
     activity.narrative = narrative;
+    activity.workItem = workItem;
   }
 
   async flush(sessionId, notifyError) {
@@ -108,6 +123,7 @@ export class AutomaticTimeLogRecorder {
     const agentRepository = activity.agentRepository;
     const agentActivity = activity.activity;
     const agentNarrative = activity.narrative;
+    const agentWorkItem = activity.workItem;
     if (startAtMs === undefined) return;
     activity.agentTurnStartAtMs = undefined;
     activity.agentRepository = undefined;
@@ -119,6 +135,7 @@ export class AutomaticTimeLogRecorder {
           repository: agentRepository,
           activity: agentActivity,
           narrative: agentNarrative,
+          workItem: agentWorkItem,
         }),
       (entry) => this.ledger.recordAutomatic(entry),
       () => {
@@ -147,6 +164,7 @@ export class AutomaticTimeLogRecorder {
       sourceStartedAtMs,
       activity: stateBeforeSettlement.activity,
       narrative: stateBeforeSettlement.narrative,
+      workItem: stateBeforeSettlement.workItem,
       activityStartedAtMs: stateBeforeSettlement.activityStartedAtMs,
       stateBeforeSettlement,
       settledState: settlement.settledState,
@@ -169,6 +187,7 @@ export class AutomaticTimeLogRecorder {
       sessionId: turn.sessionId,
       ...(turn.activity === undefined ? {} : { activity: turn.activity }),
       ...(turn.narrative === undefined ? {} : { narrative: turn.narrative }),
+      ...(turn.workItem === undefined ? {} : { workItem: turn.workItem }),
       sourceKey: `${turn.sessionId}:${repository.repositoryId}:${turn.startAtMs}:agent`,
       startAtMs: turn.startAtMs,
       endAtMs: turn.endAtMs,
@@ -229,13 +248,16 @@ class SessionActivity {
 
   narrative;
 
-  setPromptStart(repository, startedAtMs, activity, narrative) {
+  workItem;
+
+  setPromptStart(repository, startedAtMs, activity, narrative, workItem) {
     this.repository = repository;
     this.agentRepository = repository;
     this.startedAtMs = startedAtMs;
     this.agentTurnStartAtMs = startedAtMs;
     this.activity = activity;
     this.narrative = narrative;
+    this.workItem = workItem;
   }
 
   enqueue(createEntry, persist, onSuccess, onError) {

@@ -1,6 +1,7 @@
 import { MS_PER_MINUTE } from "../../utils/time-constants.js";
 import { parseActivityLabel } from "../../time-log/domain/activity.js";
 import { parseActivityNarrative } from "../../time-log/domain/narrative.js";
+import { parseWorkItem } from "../../time-log/domain/work-item.js";
 import { parseOptionalNumber } from "../../utils/parse-optional-number.js";
 
 export function emptyProjectTimeState() {
@@ -22,7 +23,10 @@ export function parseProjectTimeState(value) {
     candidate.activityStartedAtMs,
   );
   const narrative = parseActivityNarrative(candidate.narrative);
+  const workItem = parseWorkItem(candidate.workItem);
   if (candidate.narrative !== undefined && narrative === undefined)
+    return undefined;
+  if (candidate.workItem !== undefined && workItem === undefined)
     return undefined;
   return {
     promptCount,
@@ -34,6 +38,7 @@ export function parseProjectTimeState(value) {
     ...(activity === undefined ? {} : { activity }),
     ...(activityStartedAtMs === undefined ? {} : { activityStartedAtMs }),
     ...(narrative === undefined ? {} : { narrative }),
+    ...(workItem === undefined ? {} : { workItem }),
   };
 }
 
@@ -63,12 +68,20 @@ export function recordProjectTimePrompt(state, promptAtMs, config) {
   return nextState;
 }
 
-export function setProjectTimeActivity(state, activity, narrative, nowMs) {
+export function setProjectTimeActivity(
+  state,
+  activity,
+  narrative,
+  workItem,
+  nowMs,
+) {
   const nextState = { ...state };
   if (activity === undefined) delete nextState.activity;
   else nextState.activity = activity;
   if (narrative === undefined) delete nextState.narrative;
   else nextState.narrative = narrative;
+  if (workItem === undefined) delete nextState.workItem;
+  else nextState.workItem = workItem;
   if (
     nextState.activeStartAtMs !== undefined &&
     nextState.activeUntilMs !== undefined

@@ -1,6 +1,7 @@
 import { MS_PER_MINUTE } from "@/utils/time-constants.js"
 import { parseActivityLabel } from "@/time-log/domain/activity.js"
 import { parseActivityNarrative, type ActivityNarrative } from "@/time-log/domain/narrative.js"
+import { parseWorkItem, type WorkItem } from "@/time-log/domain/work-item.js"
 import { parseOptionalNumber } from "@/utils/parse-optional-number.js"
 
 export type ProjectTimeState = {
@@ -13,6 +14,7 @@ export type ProjectTimeState = {
   activity?: string
   activityStartedAtMs?: number
   narrative?: ActivityNarrative
+  workItem?: WorkItem
 }
 
 export function emptyProjectTimeState(): ProjectTimeState {
@@ -34,7 +36,9 @@ export function parseProjectTimeState(
   const activity = parseActivityLabel(candidate.activity)
   const activityStartedAtMs = parseOptionalNumber(candidate.activityStartedAtMs)
   const narrative = parseActivityNarrative(candidate.narrative)
+  const workItem = parseWorkItem(candidate.workItem)
   if (candidate.narrative !== undefined && narrative === undefined) return undefined
+  if (candidate.workItem !== undefined && workItem === undefined) return undefined
 
   return {
     promptCount,
@@ -46,6 +50,7 @@ export function parseProjectTimeState(
     ...(activity === undefined ? {} : { activity }),
     ...(activityStartedAtMs === undefined ? {} : { activityStartedAtMs }),
     ...(narrative === undefined ? {} : { narrative }),
+    ...(workItem === undefined ? {} : { workItem }),
   }
 }
 
@@ -85,6 +90,7 @@ export function setProjectTimeActivity(
   state: ProjectTimeState,
   activity: string | undefined,
   narrative: ActivityNarrative | undefined,
+  workItem: WorkItem | undefined,
   nowMs: number,
 ): ProjectTimeState {
   const nextState = { ...state }
@@ -93,6 +99,8 @@ export function setProjectTimeActivity(
   else nextState.activity = activity
   if (narrative === undefined) delete nextState.narrative
   else nextState.narrative = narrative
+  if (workItem === undefined) delete nextState.workItem
+  else nextState.workItem = workItem
   if (nextState.activeStartAtMs !== undefined && nextState.activeUntilMs !== undefined) {
     nextState.activityStartedAtMs = nowMs
   } else {

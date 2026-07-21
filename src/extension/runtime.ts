@@ -15,6 +15,7 @@ import { SessionStateCoordinator } from "@/extension/application/session-state-c
 import { AutomaticTimeLogRecorder } from "@/time-log/recorder.js"
 import { parseGeneratedActivityLabel } from "@/time-log/domain/activity.js"
 import { parseActivityNarrative } from "@/time-log/domain/narrative.js"
+import { extractWorkItem } from "@/time-log/domain/work-item.js"
 import { buildReport, type AllocationMode } from "@/time-log/domain/report.js"
 import type { SourceKind } from "@/time-log/domain/model.js"
 import type { ProjectTimeState } from "@/time-log/domain/state.js"
@@ -366,16 +367,21 @@ export class ProjectTimeRuntime {
       update.sessionId,
       update.entries,
     )
+    const workItem = extractWorkItem(prompt) ?? currentState.workItem
     const activity =
       parseGeneratedActivityLabel(generatedActivity.activity)
       ?? currentState.activity
       ?? "General Work"
     const narrative = parseActivityNarrative(generatedActivity.narrative)
-    const narrativeChanged =
-      currentState.narrative?.text !== narrative?.text
+    const stateChanged =
+      currentState.activity !== activity
+      || currentState.narrative?.text !== narrative?.text
       || currentState.narrative?.source !== narrative?.source
-    if (currentState.activity !== activity || narrativeChanged) {
-      await this.sessionStateCoordinator.setActivity(update, activity, narrative)
+      || currentState.workItem?.kind !== workItem?.kind
+      || currentState.workItem?.number !== workItem?.number
+      || currentState.workItem?.repository !== workItem?.repository
+    if (stateChanged) {
+      await this.sessionStateCoordinator.setActivity(update, activity, narrative, workItem)
     }
     const nextState = await this.sessionStateCoordinator.recordPrompt(update)
     updateStatus(ctx, nextState, config)
