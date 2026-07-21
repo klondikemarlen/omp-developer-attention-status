@@ -16,7 +16,8 @@ Canonical requirements live in [`spec/project-time.yml`](spec/project-time.yml).
 - Only top-level sessions are tracked. Subagents and artifacts do not produce entries.
 - A real user prompt keeps the human-active timer alive for `Active Window Minutes`; refreshes do not create activity.
 - Every entry includes its source kind, top-level session, sanitized project label, one-way repository hash, interval bounds, and a coarse activity label. When `origin` resolves, it also retains a normalized lowercase `host/path` repository identity without a protocol, credential, raw URL, or local filesystem path.
-- Before each top-level turn, OMP's configured title model generates the label from the current prompt. The prompt is transient; Project Time retains only the label, limited to 48 letters or numbers separated by single spaces or hyphens. If generation produces no valid label, it retains the previous label or uses `General Work`.
+- Before each top-level turn, OMP's configured title model generates the compact status label, while the active model generates a detailed, source-grounded worklog narrative from the current prompt. Labels remain limited to 48 letters or numbers separated by single spaces or hyphens. Narratives retain relevant work-item identifiers, titles, components, and files; the generator is instructed to omit credentials and personal data. If generation produces no valid label, it retains the previous label or uses `General Work`; a missing narrative remains absent.
+- Narrative completion runs inside OMP's Bun host; Node remains the development and test runtime.
 - Concurrent repositories retain their full independent intervals. Totals can exceed the OMP-active union; that is recorded evidence, not an error.
 - Project Time does not claim literal desk time. The union is an OMP-active reference only.
 - The status is a dim, keyed OMP hook-status line such as `5m 12s (dev)`. OMP owns its placement and layout.
@@ -99,6 +100,8 @@ The owner-only ledger is:
 
 It is a single JSON ledger guarded by a cross-window lock and atomically replaced. Reports read the whole local ledger; SQLite would add schema and dependency overhead without a query or transaction need.
 
+Entries may include `narrative: { text, source }` alongside `activity`, `startAtMs`, and `endAtMs`. `source` is either `generated` or `user_provided`; omitted `narrative` means no description was captured. Project Time deliberately preserves each detailed interval narrative without aggregation or summarization so downstream worklog tools can deduplicate and summarize with the original interval and duration available for review.
+
 The first launch after this major data-model release clears incompatible legacy Project Time, developer-cost, and billable ledgers. Historical data is intentionally not converted.
 
 ## Development
@@ -110,7 +113,7 @@ npm run build
 npm pack --dry-run
 ```
 
-Source modules use `@/` imports rooted at `src/`. `tsc-alias` rewrites them to relative `.js` imports in `dist/`, so the published Node ESM plugin has no unresolved source aliases.
+Source modules use `@/` imports rooted at `src/`. `tsc-alias` rewrites them to relative `.js` imports in `dist/`, so the published ESM plugin has no unresolved source aliases. OMP hosts it with Bun; Node runs the development and test tooling.
 
 ## Troubleshooting
 
