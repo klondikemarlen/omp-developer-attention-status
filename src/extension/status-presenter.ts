@@ -114,7 +114,9 @@ function recentEntries(entries: readonly TimeLogEntry[]): string[] {
     .slice(0, 3)
     .map((entry) => {
       const summary = `- ${timestampText(entry.endAtMs)}: ${durationText(entry.endAtMs - entry.startAtMs)} — ${activityText(entry.activity)}`
-      return entry.narrative === undefined ? summary : `${summary}\n  ${entry.narrative.text}`
+      return entry.narrative === undefined
+        ? summary
+        : `${summary}\n${entry.narrative.text.split("\n").map((line) => `  ${line}`).join("\n")}`
     })
 }
 

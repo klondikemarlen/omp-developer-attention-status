@@ -72,13 +72,13 @@ test("shows stored narratives in recent history while keeping legacy entries rea
     {
       ...entry,
       narrative: {
-        text: "Reviewing pull-request changes and test coverage.",
+        text: "Reviewing pull-request changes and test coverage.\nChecked the release artifact.",
         source: "generated" as const,
       },
     },
     { ...entry, id: "legacy-entry", activity: "Commit Message" },
   ], [])
 
-  assert.match(history, /Code Review\n  Reviewing pull-request changes and test coverage\./)
+  assert.match(history, /Code Review\n  Reviewing pull-request changes and test coverage\.\n  Checked the release artifact\./)
   assert.match(history, /Commit Message/)
 })
