@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.6.1] - 2026-07-22
+
+### Fixed
+
+- Remove `@oh-my-pi/pi-coding-agent` from runtime dependencies and generation wiring to eliminate its transitive vulnerability chain.
+- Resolve activity and narrative model usage through a shared helper before invoking `@oh-my-pi/pi-ai` completion.
+
 ## [7.6.0] - 2026-07-22
 
 ### Added

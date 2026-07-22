@@ -1,3 +1,4 @@
+import { resolveActivityCompletionContext } from "../extension/activity-completion.js";
 import { generateActivityNarrative } from "../extension/activity-narrative-generator.js";
 import { parseGeneratedActivityLabel } from "../time-log/domain/activity.js";
 
@@ -10,23 +11,12 @@ const activityLabelPrompt = [
 export async function generateActivity(
   prompt,
   ctx,
-  settings,
-  titleGenerator,
+  labelGenerator = generateActivityLabel,
   narrativeGenerator = generateActivityNarrative,
 ) {
   if (ctx.modelRegistry === undefined) return {};
   const [labelResult, narrativeResult] = await Promise.allSettled([
-    settings === undefined
-      ? Promise.resolve(undefined)
-      : titleGenerator(
-          prompt,
-          ctx.modelRegistry,
-          settings,
-          ctx.sessionManager.getSessionId(),
-          ctx.model,
-          undefined,
-          activityLabelPrompt,
-        ),
+    labelGenerator(prompt, ctx),
     narrativeGenerator(prompt, ctx),
   ]);
   const label =
@@ -39,4 +29,28 @@ export async function generateActivity(
     ...(label === undefined ? {} : { activity: label }),
     ...(narrative === undefined ? {} : { narrative }),
   };
+}
+
+async function generateActivityLabel(prompt, ctx) {
+  const completionContext = await resolveActivityCompletionContext(ctx);
+  if (completionContext === undefined) return undefined;
+  const completion = (await import("@oh-my-pi/pi-ai")).completeSimple;
+  const response = await completion(
+    completionContext.model,
+    {
+      systemPrompt: [activityLabelPrompt],
+      messages: [{ role: "user", content: prompt, timestamp: Date.now() }],
+    },
+    {
+      apiKey: completionContext.apiKey,
+      maxTokens: 64,
+      disableReasoning: true,
+    },
+  );
+  if (response.stopReason === "error") return undefined;
+  let text = "";
+  for (const content of response.content) {
+    if (content.type === "text") text += content.text ?? "";
+  }
+  return parseGeneratedActivityLabel(text);
 }
