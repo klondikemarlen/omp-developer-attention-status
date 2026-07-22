@@ -22,7 +22,7 @@ Canonical requirements live in [`spec/project-time.yml`](spec/project-time.yml).
 - Project Time does not claim literal desk time. The union is an OMP-active reference only.
 - The status is a dim, keyed OMP hook-status line such as `5m 12s (dev)`. OMP owns its placement and layout.
 
-The plugin writes only through `ctx.ui.setStatus(...)`. With `@oh-my-pi/pi-coding-agent` `17.0.1` or newer, each keyed extension status is rendered on its own hook-status line; plugin status cannot be placed inline beside OMP's built-in usage and cost segments.
+The plugin writes only through `ctx.ui.setStatus(...)`. OMP renders each extension status in its own keyed line; placement is controlled by OMP's status layout and segment registry.
 
 ## Defaults
 

@@ -1,4 +1,5 @@
 import type { ExtensionContext } from "@/extension/types.js"
+import { resolveActivityCompletionContext } from "@/extension/activity-completion.js"
 import {
   parseActivityNarrative,
   type ActivityNarrative,
@@ -16,7 +17,7 @@ export type ActivityNarrativeCompletion = (
     messages: Array<{ role: "user"; content: string; timestamp: number }>
   },
   options: {
-    apiKey: unknown
+    apiKey: string
     maxTokens: number
     disableReasoning: boolean
   },
@@ -34,27 +35,19 @@ export async function generateActivityNarrative(
   ctx: ExtensionContext,
   complete?: ActivityNarrativeCompletion,
 ): Promise<ActivityNarrative | undefined> {
-  const model = ctx.model
-    ?? ctx.models?.current()
-    ?? ctx.models?.resolve("@tiny")
-    ?? ctx.models?.resolve("@commit")
-    ?? ctx.models?.resolve("@smol")
-  if (ctx.modelRegistry === undefined || model === undefined) return undefined
-
-  const sessionId = ctx.sessionManager.getSessionId()
-  const apiKey = await ctx.modelRegistry.getApiKey(model, sessionId)
-  if (!apiKey) return undefined
+  const completionContext = await resolveActivityCompletionContext(ctx)
+  if (completionContext === undefined) return undefined
 
   // OMP's Bun runtime loads pi-ai source modules; Node test workers do not load its Markdown imports.
-  const completion = complete ?? (await import("@oh-my-pi/pi-ai")).completeSimple as unknown as ActivityNarrativeCompletion
+  const completion = complete ?? (await import("@oh-my-pi/pi-ai")).completeSimple
   const response = await completion(
-    model,
+    completionContext.model,
     {
       systemPrompt: [activityNarrativePrompt],
       messages: [{ role: "user", content: prompt, timestamp: Date.now() }],
     },
     {
-      apiKey: ctx.modelRegistry.resolver(model, sessionId),
+      apiKey: completionContext.apiKey,
       maxTokens: 1_500,
       disableReasoning: true,
     },

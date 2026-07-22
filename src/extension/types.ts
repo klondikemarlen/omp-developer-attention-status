@@ -1,13 +1,11 @@
-import type { generateSessionTitle } from "@oh-my-pi/pi-coding-agent/utils/title-generator"
+import type { Api, Model } from "@oh-my-pi/pi-ai"
 import type { ActivityNarrative } from "@/time-log/domain/narrative.js"
-
 
 import type { ProjectTimeConfig } from "@/config/project-time-config.js"
 
 export type SessionHeaderLike = {
   parentSession?: unknown
 }
-
 export type SessionEntryLike = {
   type?: unknown
   customType?: unknown
@@ -18,8 +16,8 @@ export type SessionManagerLike = {
   getSessionId(): string
   getHeader(): SessionHeaderLike | null
   getEntries(): SessionEntryLike[]
-  getSessionName?(): string | undefined
-  getBranch?(): SessionEntryLike[]
+  getSessionName?: () => string
+  getBranch?: () => SessionEntryLike[]
 }
 
 export type ThemeLike = {
@@ -32,7 +30,11 @@ export type UiLike = {
   theme: ThemeLike
 }
 
-type OmpModel = Parameters<typeof generateSessionTitle>[4]
+type OmpModel = Model<Api>
+
+type OmpModelRegistry = {
+  getApiKey(model: OmpModel, sessionId: string): Promise<string | undefined>
+}
 
 export type ExtensionContext = {
   cwd: string
@@ -43,7 +45,7 @@ export type ExtensionContext = {
     current(): OmpModel | undefined
     resolve(spec: string): OmpModel | undefined
   }
-  modelRegistry?: Parameters<typeof generateSessionTitle>[1]
+  modelRegistry?: OmpModelRegistry
 }
 
 export type CommandCompletion = {
@@ -70,7 +72,7 @@ export type TurnEndHandler = (
 ) => Promise<void>
 
 export type ExtensionApi = {
-  pi?: { settings?: Parameters<typeof generateSessionTitle>[2] }
+  pi?: { settings?: Record<string, unknown> }
   registerCommand(
     name: string,
     options: {

@@ -31,7 +31,6 @@ test("preserves detailed completion text for a source-grounded narrative", async
     model: {} as NonNullable<ExtensionContext["model"]>,
     modelRegistry: {
       getApiKey: async () => "key",
-      resolver: () => () => "key",
     },
   } as unknown as ExtensionContext
 
@@ -69,10 +68,6 @@ test("uses the current session model when the event model is absent", async () =
       getApiKey: async (candidate: unknown) => {
         assert.equal(candidate, model)
         return "key"
-      },
-      resolver: (candidate: unknown) => {
-        assert.equal(candidate, model)
-        return () => "key"
       },
     },
   } as unknown as ExtensionContext
@@ -115,7 +110,6 @@ test("resolves the configured title model when lifecycle context has none", asyn
     },
     modelRegistry: {
       getApiKey: async () => "key",
-      resolver: () => () => "key",
     },
   } as unknown as ExtensionContext
 
