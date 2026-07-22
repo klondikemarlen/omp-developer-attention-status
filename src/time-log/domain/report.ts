@@ -66,7 +66,7 @@ export function buildHumanActiveCoverage(
   return [...entriesByProject.entries()]
     .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
     .map(([project, projectEntries]) => {
-      const intervals = mergedCoverageIntervals(projectEntries)
+      const intervals = mergedIntervals(projectEntries)
       const inactiveGaps = intervals.slice(1).map((interval, index) => ({
         startAtMs: intervals[index]!.endAtMs,
         endAtMs: interval.startAtMs,
@@ -267,7 +267,7 @@ function segmentEntries(
   return segments
 }
 
-function mergedCoverageIntervals(
+function mergedIntervals(
   entries: readonly TimeLogEntry[],
 ): Array<{ startAtMs: number; endAtMs: number }> {
   const intervals = [...entries]
@@ -288,35 +288,10 @@ function mergedCoverageIntervals(
 }
 
 function unionMilliseconds(entries: readonly TimeLogEntry[]): number {
-  const intervals = [...entries].sort(
-    (left, right) => left.startAtMs - right.startAtMs,
+  return mergedIntervals(entries).reduce(
+    (total, interval) => total + interval.endAtMs - interval.startAtMs,
+    0,
   )
-  let totalMilliseconds = 0
-  let currentStartAtMs: number | undefined
-  let currentEndAtMs: number | undefined
-
-  for (const entry of intervals) {
-    if (currentStartAtMs === undefined || currentEndAtMs === undefined) {
-      currentStartAtMs = entry.startAtMs
-      currentEndAtMs = entry.endAtMs
-      continue
-    }
-
-    if (entry.startAtMs > currentEndAtMs) {
-      totalMilliseconds += currentEndAtMs - currentStartAtMs
-      currentStartAtMs = entry.startAtMs
-      currentEndAtMs = entry.endAtMs
-      continue
-    }
-
-    currentEndAtMs = Math.max(currentEndAtMs, entry.endAtMs)
-  }
-
-  if (currentStartAtMs !== undefined && currentEndAtMs !== undefined) {
-    totalMilliseconds += currentEndAtMs - currentStartAtMs
-  }
-
-  return totalMilliseconds
 }
 
 
