@@ -86,6 +86,8 @@ const PROJECT_OPTION = {
 }
 
 function supportsProjectOption(tokens: readonly string[]): boolean {
+  if (tokens.length === 0) return true
+
   if (tokens[0] === "summary" || tokens[0] === "history") {
     return tokens.length === 1
   }
@@ -124,27 +126,19 @@ export class ProjectTimeRuntime {
     const projectOptionIndex = tokens.indexOf("--project")
     if (projectOptionIndex !== -1) {
       const baseTokens = tokens.slice(0, projectOptionIndex)
-      if (baseTokens.length > 0 && !supportsProjectOption(baseTokens)) {
-        return null
-      }
-      const selectingProject =
-        projectOptionIndex === tokens.length - 1 && prefix.endsWith(" ")
-      const current = selectingProject ? "" : tokens.at(-1) ?? ""
-      if (
-        !selectingProject
-        && !(projectOptionIndex === tokens.length - 2 && !prefix.endsWith(" "))
-      ) {
-        return null
-      }
+      if (!supportsProjectOption(baseTokens)) return null
+      const valueStart = prefix.indexOf("--project") + "--project".length
+      const entered = prefix.slice(valueStart)
+      if (/\s--/.test(entered)) return null
+      if (!prefix.endsWith(" ") && entered.trim() === "") return null
 
-      const base = current === ""
-        ? prefix.trimEnd()
-        : prefix.slice(0, -current.length).trimEnd()
+      const current = entered.trim().replace(/^['"]/, "")
+      const base = prefix.slice(0, valueStart).trimEnd()
       return this.timeLogRecorder
         .projectNames()
         .filter((project) => project.toLowerCase().startsWith(current.toLowerCase()))
         .map((project) => ({
-          value: `${base} ${project}`,
+          value: `${base} ${/^[^\s"'\\]+$/.test(project) ? project : JSON.stringify(project)}`,
           label: project,
           description: "Local Project Time project",
         }))
@@ -711,8 +705,8 @@ function parseProjectTimeCommand(args: string): ProjectTimeCommand {
   }
 
   const project = tokens.at(-1)
-  if (project === undefined || !/^[A-Za-z0-9._-]+$/.test(project)) {
-    throw new Error("Project names use letters, numbers, periods, underscores, and hyphens.")
+  if (project === undefined || project.trim() === "") {
+    throw new Error("Project names must not be blank.")
   }
 
   const commandTokens = tokens.slice(0, -2)

@@ -15,3 +15,9 @@
 - Keep public entrypoints and event handlers thin. Separate domain models/use cases from infrastructure adapters such as files, locks, Git, and OMP.
 - Prefer one meaningful domain module over a folder of trivial wrappers. Split files only at stable domain or adapter boundaries.
 - Optimize for a maintainer reading one domain folder: names should reveal the business concept, and no file should require knowledge of unrelated infrastructure to understand its purpose.
+
+## Release Closeout
+
+- After merging a release pull request, fetch `origin`, switch to the tracked default branch, and fast-forward it from `origin`.
+- Delete only the merged agent-owned feature branch, run `git worktree prune`, and inspect `git worktree list`.
+- Finish with a clean working tree on the latest `origin/main`; record the branch, sync, and retained worktree evidence.

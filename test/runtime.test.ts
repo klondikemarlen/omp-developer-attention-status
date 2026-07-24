@@ -157,6 +157,16 @@ test("shows concise reports and generates automatic activity labels", async () =
             endAtMs: coverageStart + 180_000,
             createdAtMs: coverageStart + 180_000,
           },
+          {
+            id: "multiword-human",
+            sourceKind: "human_active",
+            project: "Ice Fog Analytics",
+            repositoryId: "ice-fog-repository",
+            activity: "Planning",
+            startAtMs: coverageStart + 240_000,
+            endAtMs: coverageStart + 360_000,
+            createdAtMs: coverageStart + 360_000,
+          },
         ],
       }),
     )
@@ -167,6 +177,23 @@ test("shows concise reports and generates automatic activity labels", async () =
       argumentCompletions?.("history --project w")?.map(({ value }) => value),
       ["history --project wrap"],
     )
+    assert.deepEqual(
+      argumentCompletions?.("--project ")?.map(({ value }) => value),
+      ["--project \"Ice Fog Analytics\"", "--project other", "--project wrap"],
+    )
+    assert.deepEqual(
+      argumentCompletions?.("history --project i")?.map(({ value }) => value),
+      ["history --project \"Ice Fog Analytics\""],
+    )
+    assert.deepEqual(
+      argumentCompletions?.("history --project \"i")?.map(({ value }) => value),
+      ["history --project \"Ice Fog Analytics\""],
+    )
+
+    await handler('history --project "Ice Fog Analytics"', context)
+    assert.match(notices.at(-1)?.message ?? "", /Project: Ice Fog Analytics/)
+    assert.match(notices.at(-1)?.message ?? "", /Recent human active:\n- .*Planning/)
+
 
     await handler("--project wrap", context)
     assert.match(notices.at(-1)?.message ?? "", /Project: wrap · Ledger view/)
